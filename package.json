@@ -1,0 +1,30 @@
+{
+  "name": "discord-job-search-tracker-bot",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Personal Discord bot for scheduled job-search monitoring and application tracking.",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "check": "tsc -p tsconfig.json --noEmit",
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js",
+    "commands:register": "tsx src/register-commands.ts",
+    "smoke:fetchers": "tsx src/smoke-fetchers.ts"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "better-sqlite3": "^12.11.1",
+    "discord.js": "^14.26.4",
+    "dotenv": "^16.6.1",
+    "node-cron": "^4.2.1"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^22.18.6",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3"
+  }
+}

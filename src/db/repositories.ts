@@ -1,0 +1,338 @@
+import type Database from "better-sqlite3";
+import { config } from "../config.js";
+import { writeApplicationsCsv } from "../csv/exporter.js";
+import { nowIso } from "../time.js";
+import type {
+  ApplicationRow,
+  CheckStatus,
+  CheckType,
+  ClosedSubStatus,
+  KeywordKind,
+  KeywordRow,
+  NewOpenRole,
+  OpenRoleRow,
+  OpenRoleWithTarget,
+  TargetRow,
+  TargetScanOutcome
+} from "../types.js";
+
+interface AddTargetInput {
+  name: string;
+  checkType: CheckType;
+  boardSlug: string | null;
+  careersUrl: string | null;
+  category: string | null;
+}
+
+interface UpdateApplicationInput {
+  heardBackDate?: string | null;
+  addInterviewDate?: string | null;
+  notes?: string | null;
+}
+
+interface CloseApplicationInput {
+  subStatus: ClosedSubStatus;
+  decisionDate: string;
+  reason?: string | null;
+  notes?: string | null;
+}
+
+export class JobTrackerRepository {
+  constructor(private readonly db: Database.Database) {}
+
+  listTargets(includeInactive = false): TargetRow[] {
+    const sql = includeInactive
+      ? "SELECT * FROM targets ORDER BY active DESC, lower(name)"
+      : "SELECT * FROM targets WHERE active = 1 ORDER BY lower(name)";
+    return this.db.prepare(sql).all() as TargetRow[];
+  }
+
+  addTarget(input: AddTargetInput): TargetRow {
+    const info = this.db
+      .prepare(
+        `INSERT INTO targets (name, check_type, board_slug, careers_url, category, last_check_status, active)
+         VALUES (?, ?, ?, ?, ?, ?, 1)`
+      )
+      .run(
+        input.name,
+        input.checkType,
+        input.boardSlug,
+        input.careersUrl,
+        input.category,
+        input.checkType === "manual" ? "manual" : null
+      );
+
+    return this.getTarget(Number(info.lastInsertRowid));
+  }
+
+  disableTarget(id: number): boolean {
+    const info = this.db.prepare("UPDATE targets SET active = 0 WHERE id = ?").run(id);
+    return info.changes > 0;
+  }
+
+  getTarget(id: number): TargetRow {
+    const row = this.db.prepare("SELECT * FROM targets WHERE id = ?").get(id) as TargetRow | undefined;
+    if (!row) throw new Error(`Target ${id} not found`);
+    return row;
+  }
+
+  listKeywords(): KeywordRow[] {
+    return this.db.prepare("SELECT * FROM keywords ORDER BY kind, lower(term)").all() as KeywordRow[];
+  }
+
+  addKeyword(term: string, kind: KeywordKind): void {
+    const normalized = normalizeKeyword(term);
+    this.db.prepare("INSERT OR IGNORE INTO keywords (term, kind) VALUES (?, ?)").run(normalized, kind);
+  }
+
+  removeKeyword(term: string, kind: KeywordKind): boolean {
+    const normalized = normalizeKeyword(term);
+    const info = this.db.prepare("DELETE FROM keywords WHERE term = ? AND kind = ?").run(normalized, kind);
+    return info.changes > 0;
+  }
+
+  saveScanOutcomes(outcomes: TargetScanOutcome[], checkedAt: string): void {
+    const priorRows = this.db
+      .prepare("SELECT target_id, external_id, title, apply_url, first_seen_at FROM open_roles")
+      .all() as Array<Pick<OpenRoleRow, "target_id" | "external_id" | "title" | "apply_url" | "first_seen_at">>;
+    const firstSeenByKey = new Map<string, string | null>();
+    for (const row of priorRows) {
+      firstSeenByKey.set(roleIdentity(row), row.first_seen_at);
+    }
+
+    const updateTarget = this.db.prepare(
+      "UPDATE targets SET last_check_status = ?, last_checked_at = ? WHERE id = ?"
+    );
+    const deleteRoles = this.db.prepare("DELETE FROM open_roles");
+    const insertRole = this.db.prepare(
+      `INSERT INTO open_roles (target_id, external_id, title, location, apply_url, first_seen_at, last_seen_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`
+    );
+
+    const transaction = this.db.transaction((items: TargetScanOutcome[]) => {
+      for (const outcome of items) {
+        updateTarget.run(outcome.status, checkedAt, outcome.target.id);
+      }
+
+      deleteRoles.run();
+
+      for (const outcome of items) {
+        if (outcome.status !== "ok") continue;
+        for (const role of outcome.matchingRoles) {
+          const firstSeenAt = firstSeenByKey.get(roleIdentity(role)) ?? checkedAt;
+          insertRole.run(
+            role.target_id,
+            role.external_id,
+            role.title,
+            role.location,
+            role.apply_url,
+            firstSeenAt,
+            checkedAt
+          );
+        }
+      }
+    });
+
+    transaction(outcomes);
+  }
+
+  listOpenRolesWithTargets(): OpenRoleWithTarget[] {
+    return this.db
+      .prepare(
+        `SELECT open_roles.*, targets.name AS company, targets.last_check_status AS target_check_status
+         FROM open_roles
+         JOIN targets ON targets.id = open_roles.target_id
+         ORDER BY lower(targets.name), lower(open_roles.title)`
+      )
+      .all() as OpenRoleWithTarget[];
+  }
+
+  getOpenRoleWithTarget(id: number): OpenRoleWithTarget | null {
+    return (
+      (this.db
+        .prepare(
+          `SELECT open_roles.*, targets.name AS company, targets.last_check_status AS target_check_status
+           FROM open_roles
+           JOIN targets ON targets.id = open_roles.target_id
+           WHERE open_roles.id = ?`
+        )
+        .get(id) as OpenRoleWithTarget | undefined) ?? null
+    );
+  }
+
+  createApplicationFromOpenRole(role: OpenRoleWithTarget, dateApplied: string): ApplicationRow {
+    const existing = this.db
+      .prepare(
+        `SELECT * FROM applications
+         WHERE status = 'active'
+           AND company = ?
+           AND role_title = ?
+           AND COALESCE(apply_url, '') = COALESCE(?, '')
+         ORDER BY id DESC
+         LIMIT 1`
+      )
+      .get(role.company, role.title, role.apply_url) as ApplicationRow | undefined;
+
+    if (existing) return existing;
+
+    const timestamp = nowIso();
+    const info = this.db
+      .prepare(
+        `INSERT INTO applications (
+          company,
+          role_title,
+          apply_url,
+          date_applied,
+          status,
+          sub_status,
+          heard_back_date,
+          interview_dates,
+          decision_date,
+          reason,
+          notes,
+          created_at,
+          updated_at
+        ) VALUES (?, ?, ?, ?, 'active', NULL, NULL, '[]', NULL, NULL, NULL, ?, ?)`
+      )
+      .run(role.company, role.title, role.apply_url, dateApplied, timestamp, timestamp);
+
+    const application = this.getApplication(Number(info.lastInsertRowid));
+    this.regenerateCsv();
+    return application;
+  }
+
+  listActiveApplications(): ApplicationRow[] {
+    return this.db
+      .prepare(
+        `SELECT * FROM applications
+         WHERE status = 'active'
+         ORDER BY date_applied DESC, created_at DESC, id DESC`
+      )
+      .all() as ApplicationRow[];
+  }
+
+  listClosedApplications(limit: number): ApplicationRow[] {
+    return this.db
+      .prepare(
+        `SELECT * FROM applications
+         WHERE status = 'closed'
+         ORDER BY COALESCE(decision_date, updated_at, created_at) DESC, id DESC
+         LIMIT ?`
+      )
+      .all(limit) as ApplicationRow[];
+  }
+
+  listAllApplicationsForExport(): ApplicationRow[] {
+    return this.db
+      .prepare(
+        `SELECT * FROM applications
+         ORDER BY date_applied DESC, created_at DESC, id DESC`
+      )
+      .all() as ApplicationRow[];
+  }
+
+  getApplication(id: number): ApplicationRow {
+    const row = this.db.prepare("SELECT * FROM applications WHERE id = ?").get(id) as ApplicationRow | undefined;
+    if (!row) throw new Error(`Application ${id} not found`);
+    return row;
+  }
+
+  updateApplication(id: number, input: UpdateApplicationInput): ApplicationRow {
+    const current = this.getApplication(id);
+    const interviewDates = parseInterviewDates(current.interview_dates);
+    const addInterviewDate = input.addInterviewDate?.trim();
+    if (addInterviewDate && !interviewDates.includes(addInterviewDate)) {
+      interviewDates.push(addInterviewDate);
+      interviewDates.sort();
+    }
+
+    const heardBackDate = presentOrCurrent(input.heardBackDate, current.heard_back_date);
+    const notes = presentOrCurrent(input.notes, current.notes);
+    const timestamp = nowIso();
+
+    this.db
+      .prepare(
+        `UPDATE applications
+         SET heard_back_date = ?,
+             interview_dates = ?,
+             notes = ?,
+             updated_at = ?
+         WHERE id = ?`
+      )
+      .run(heardBackDate, JSON.stringify(interviewDates), notes, timestamp, id);
+
+    const updated = this.getApplication(id);
+    this.regenerateCsv();
+    return updated;
+  }
+
+  closeApplication(id: number, input: CloseApplicationInput): ApplicationRow {
+    const current = this.getApplication(id);
+    const timestamp = nowIso();
+    const notes = presentOrCurrent(input.notes, current.notes);
+    const reason = emptyToNull(input.reason);
+
+    this.db
+      .prepare(
+        `UPDATE applications
+         SET status = 'closed',
+             sub_status = ?,
+             decision_date = ?,
+             reason = ?,
+             notes = ?,
+             updated_at = ?
+         WHERE id = ?`
+      )
+      .run(input.subStatus, input.decisionDate, reason, notes, timestamp, id);
+
+    const updated = this.getApplication(id);
+    this.regenerateCsv();
+    return updated;
+  }
+
+  regenerateCsv(): void {
+    writeApplicationsCsv(this.listAllApplicationsForExport(), config.csvExportPath);
+  }
+}
+
+function normalizeKeyword(term: string): string {
+  const normalized = term.trim().toLowerCase();
+  if (normalized.length === 0) {
+    throw new Error("Keyword term cannot be empty");
+  }
+  return normalized;
+}
+
+function roleIdentity(role: Pick<NewOpenRole, "target_id" | "external_id" | "apply_url" | "title">): string {
+  if (role.external_id) return `${role.target_id}:external:${role.external_id}`;
+  return `${role.target_id}:url:${role.apply_url}:title:${role.title}`;
+}
+
+function parseInterviewDates(raw: string | null): string[] {
+  if (!raw) return [];
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((value): value is string => typeof value === "string");
+  } catch {
+    return [];
+  }
+}
+
+function presentOrCurrent(next: string | null | undefined, current: string | null): string | null {
+  if (next === undefined) return current;
+  const trimmed = next?.trim() ?? "";
+  return trimmed.length > 0 ? trimmed : current;
+}
+
+function emptyToNull(value: string | null | undefined): string | null {
+  const trimmed = value?.trim() ?? "";
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+export function statusLabel(status: CheckStatus | null): string {
+  if (status === "ok") return "ok";
+  if (status === "failed") return "failed";
+  if (status === "manual") return "manual";
+  return "never checked";
+}
