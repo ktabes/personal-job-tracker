@@ -2,56 +2,58 @@ import {
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
+  EmbedBuilder,
   type MessageActionRowComponentBuilder,
   type MessageCreateOptions
 } from "discord.js";
 import type { JobTrackerRepository } from "../db/repositories.js";
-import type { OpenRoleWithTarget, TargetScanOutcome } from "../types.js";
+import type { OpenRoleWithTarget } from "../types.js";
 import type { ScanSummary } from "../scraper/scanner.js";
 
-const MAX_CONTENT_LENGTH = 1_800;
+const MAX_EMBED_DESCRIPTION_LENGTH = 3_800;
 const MAX_BUTTONS_PER_MESSAGE = 25;
+const REPORT_COLOR = 0x2f80ed;
 
 export function buildOpenRolesReport(
   summary: ScanSummary,
   repository: JobTrackerRepository
 ): MessageCreateOptions[] {
   const roles = repository.listOpenRolesWithTargets();
-  const messages: MessageCreateOptions[] = [];
-  const groupedRoles = groupByCompany(roles);
-
-  for (const [company, companyRoles] of groupedRoles) {
-    messages.push(...buildCompanyRoleMessages(company, companyRoles));
-  }
-
-  messages.unshift(buildStatusMessage(summary));
-  return messages;
+  return [buildStatusMessage(summary), ...buildRoleMessages(roles)];
 }
 
-function buildCompanyRoleMessages(company: string, roles: OpenRoleWithTarget[]): MessageCreateOptions[] {
+function buildRoleMessages(roles: OpenRoleWithTarget[]): MessageCreateOptions[] {
   const messages: MessageCreateOptions[] = [];
-  let lines = [`**Open Roles Report**`, `**${company}**`];
+  let lines: string[] = [];
   let buttons: ButtonBuilder[] = [];
 
   for (const role of roles) {
-    const line = `- [${escapeLinkText(role.title)}](${role.apply_url})${role.location ? ` - ${role.location}` : ""}`;
-    const nextLength = [...lines, line].join("\n").length;
-    if (nextLength > MAX_CONTENT_LENGTH || buttons.length >= MAX_BUTTONS_PER_MESSAGE) {
-      messages.push(toMessage(lines, buttons));
-      lines = [`**Open Roles Report**`, `**${company}** continued`];
+    const roleNumber = buttons.length + 1;
+    const line = formatRoleLine(role, roleNumber);
+    const nextDescriptionLength = [...lines, line].join("\n").length;
+    if (
+      lines.length > 0 &&
+      (nextDescriptionLength > MAX_EMBED_DESCRIPTION_LENGTH || buttons.length >= MAX_BUTTONS_PER_MESSAGE)
+    ) {
+      messages.push(toRoleMessage(lines, buttons, messages.length + 1));
+      lines = [];
       buttons = [];
     }
 
-    lines.push(line);
+    const nextRoleNumber = buttons.length + 1;
+    lines.push(formatRoleLine(role, nextRoleNumber));
     buttons.push(
       new ButtonBuilder()
         .setCustomId(`apply:${role.id}`)
-        .setLabel(truncateButtonLabel(`Applied ✅: ${role.title}`))
+        .setLabel(`Apply #${nextRoleNumber} ✅`)
         .setStyle(ButtonStyle.Success)
     );
   }
 
-  messages.push(toMessage(lines, buttons));
+  if (lines.length > 0) {
+    messages.push(toRoleMessage(lines, buttons, messages.length + 1));
+  }
+
   return messages;
 }
 
@@ -64,7 +66,6 @@ function buildStatusMessage(summary: ScanSummary): MessageCreateOptions {
   const matchCount = summary.outcomes.reduce((sum, outcome) => sum + outcome.matchingRoles.length, 0);
 
   const lines = [
-    "**Open Roles Report**",
     `Checked at: ${summary.checkedAt}`,
     matchCount > 0 ? `Matching roles found: ${matchCount}` : "No matching auto-check roles found."
   ];
@@ -99,22 +100,25 @@ function buildStatusMessage(summary: ScanSummary): MessageCreateOptions {
     lines.push("", "No active targets are configured yet.");
   }
 
-  return { content: splitLongLines(lines).join("\n") };
-}
-
-function groupByCompany(roles: OpenRoleWithTarget[]): Map<string, OpenRoleWithTarget[]> {
-  const grouped = new Map<string, OpenRoleWithTarget[]>();
-  for (const role of roles) {
-    const existing = grouped.get(role.company) ?? [];
-    existing.push(role);
-    grouped.set(role.company, existing);
-  }
-  return grouped;
-}
-
-function toMessage(lines: string[], buttons: ButtonBuilder[]): MessageCreateOptions {
   return {
-    content: lines.join("\n"),
+    embeds: [
+      new EmbedBuilder()
+        .setTitle("Open Roles Report")
+        .setDescription(splitLongLines(lines).join("\n"))
+        .setColor(REPORT_COLOR)
+    ]
+  };
+}
+
+function toRoleMessage(lines: string[], buttons: ButtonBuilder[], page: number): MessageCreateOptions {
+  return {
+    embeds: [
+      new EmbedBuilder()
+        .setTitle(`Open Roles - Page ${page}`)
+        .setDescription(lines.join("\n"))
+        .setFooter({ text: "Click the matching Apply button below to track an application." })
+        .setColor(REPORT_COLOR)
+    ],
     components: chunk(buttons, 5).map((buttonRow) =>
       new ActionRowBuilder<MessageActionRowComponentBuilder>().addComponents(...buttonRow)
     )
@@ -129,12 +133,19 @@ function chunk<T>(items: T[], size: number): T[][] {
   return chunks;
 }
 
-function truncateButtonLabel(label: string): string {
-  return label.length > 80 ? `${label.slice(0, 77)}...` : label;
+function formatRoleLine(role: OpenRoleWithTarget, roleNumber: number): string {
+  const company = truncateText(role.company, 42);
+  const title = escapeLinkText(truncateText(role.title, 92));
+  const location = role.location ? ` - ${truncateText(role.location, 60)}` : "";
+  return `**#${roleNumber} ${company}** - [${title}](${role.apply_url})${location}`;
 }
 
 function escapeLinkText(value: string): string {
   return value.replaceAll("[", "\\[").replaceAll("]", "\\]");
+}
+
+function truncateText(value: string, maxLength: number): string {
+  return value.length > maxLength ? `${value.slice(0, maxLength - 3)}...` : value;
 }
 
 function splitLongLines(lines: string): string[];
