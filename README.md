@@ -104,6 +104,8 @@ npm run targets:import:crypto-data
 
 The importer skips rows already present with the same name, check type, slug, and careers URL.
 
+Railway also runs this import before starting the bot, so a fresh volume is seeded automatically on first deploy.
+
 ## Open Roles Refresh
 
 `open_roles` is a current snapshot table. Every scan preserves prior `first_seen_at` values in memory, clears `open_roles`, and inserts the current successful scrape results. Failed and manual targets do not insert stale roles. Application records are copied into `applications` at apply time and are never joined back to `open_roles` for core application data.
