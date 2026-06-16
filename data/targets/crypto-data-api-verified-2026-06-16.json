@@ -1,0 +1,515 @@
+[
+  {
+    "name": "Hyperliquid Labs",
+    "check_type": "ats_ashby",
+    "board_slug": "Hyperliquid Labs",
+    "careers_url": "https://jobs.ashbyhq.com/Hyperliquid%20Labs",
+    "category": "hyperevm-hyperliquid",
+    "source_ats": "ashby",
+    "source_endpoint": "https://api.ashbyhq.com/posting-api/job-board/Hyperliquid%20Labs"
+  },
+  {
+    "name": "Gauntlet",
+    "check_type": "ats_lever",
+    "board_slug": "gauntlet",
+    "careers_url": "https://jobs.lever.co/gauntlet",
+    "category": "hyperevm-hyperliquid",
+    "source_ats": "lever",
+    "source_endpoint": "https://api.lever.co/v0/postings/gauntlet?mode=json"
+  },
+  {
+    "name": "Veda",
+    "check_type": "ats_lever",
+    "board_slug": "vedatechlabs",
+    "careers_url": "https://jobs.lever.co/vedatechlabs",
+    "category": "hyperevm-hyperliquid",
+    "source_ats": "lever",
+    "source_endpoint": "https://api.lever.co/v0/postings/vedatechlabs?mode=json"
+  },
+  {
+    "name": "Morpho",
+    "check_type": "ats_ashby",
+    "board_slug": "morpho",
+    "careers_url": "https://jobs.ashbyhq.com/morpho",
+    "category": "hyperevm-hyperliquid",
+    "source_ats": "ashby",
+    "source_endpoint": "https://api.ashbyhq.com/posting-api/job-board/morpho"
+  },
+  {
+    "name": "LayerZero Labs",
+    "check_type": "ats_greenhouse",
+    "board_slug": "layerzerolabs",
+    "careers_url": "https://job-boards.greenhouse.io/layerzerolabs",
+    "category": "hyperevm-hyperliquid",
+    "source_ats": "greenhouse",
+    "source_endpoint": "https://boards-api.greenhouse.io/v1/boards/layerzerolabs/jobs"
+  },
+  {
+    "name": "Centrifuge",
+    "check_type": "ats_lever",
+    "board_slug": "centrifuge",
+    "careers_url": "https://jobs.lever.co/centrifuge",
+    "category": "hyperevm-hyperliquid",
+    "source_ats": "lever",
+    "source_endpoint": "https://api.lever.co/v0/postings/centrifuge?mode=json"
+  },
+  {
+    "name": "Dune",
+    "check_type": "ats_ashby",
+    "board_slug": "dune",
+    "careers_url": "https://jobs.ashbyhq.com/dune",
+    "category": "crypto-broader",
+    "source_ats": "ashby",
+    "source_endpoint": "https://api.ashbyhq.com/posting-api/job-board/dune"
+  },
+  {
+    "name": "Nansen",
+    "check_type": "ats_greenhouse",
+    "board_slug": "nansen",
+    "careers_url": "https://job-boards.greenhouse.io/nansen",
+    "category": "crypto-broader",
+    "source_ats": "greenhouse",
+    "source_endpoint": "https://boards-api.greenhouse.io/v1/boards/nansen/jobs"
+  },
+  {
+    "name": "Flipside Crypto",
+    "check_type": "ats_greenhouse",
+    "board_slug": "flipside",
+    "careers_url": "https://job-boards.greenhouse.io/flipside",
+    "category": "crypto-broader",
+    "source_ats": "greenhouse",
+    "source_endpoint": "https://boards-api.greenhouse.io/v1/boards/flipside/jobs"
+  },
+  {
+    "name": "Messari",
+    "check_type": "ats_greenhouse",
+    "board_slug": "messari",
+    "careers_url": "https://job-boards.greenhouse.io/messari",
+    "category": "crypto-broader",
+    "source_ats": "greenhouse",
+    "source_endpoint": "https://boards-api.greenhouse.io/v1/boards/messari/jobs"
+  },
+  {
+    "name": "Allium",
+    "check_type": "ats_ashby",
+    "board_slug": "allium",
+    "careers_url": "https://jobs.ashbyhq.com/allium",
+    "category": "crypto-broader",
+    "source_ats": "ashby",
+    "source_endpoint": "https://api.ashbyhq.com/posting-api/job-board/allium"
+  },
+  {
+    "name": "Chainalysis",
+    "check_type": "ats_ashby",
+    "board_slug": "chainalysis-careers",
+    "careers_url": "https://jobs.ashbyhq.com/chainalysis-careers",
+    "category": "crypto-broader",
+    "source_ats": "ashby",
+    "source_endpoint": "https://api.ashbyhq.com/posting-api/job-board/chainalysis-careers"
+  },
+  {
+    "name": "TRM Labs",
+    "check_type": "ats_ashby",
+    "board_slug": "trm-labs",
+    "careers_url": "https://jobs.ashbyhq.com/trm-labs",
+    "category": "crypto-broader",
+    "source_ats": "ashby",
+    "source_endpoint": "https://api.ashbyhq.com/posting-api/job-board/trm-labs"
+  },
+  {
+    "name": "Elliptic",
+    "check_type": "ats_ashby",
+    "board_slug": "elliptic",
+    "careers_url": "https://jobs.ashbyhq.com/elliptic",
+    "category": "crypto-broader",
+    "source_ats": "ashby",
+    "source_endpoint": "https://api.ashbyhq.com/posting-api/job-board/elliptic"
+  },
+  {
+    "name": "Alchemy",
+    "check_type": "ats_ashby",
+    "board_slug": "alchemy",
+    "careers_url": "https://jobs.ashbyhq.com/alchemy",
+    "category": "crypto-broader",
+    "source_ats": "ashby",
+    "source_endpoint": "https://api.ashbyhq.com/posting-api/job-board/alchemy"
+  },
+  {
+    "name": "Goldsky",
+    "check_type": "ats_ashby",
+    "board_slug": "goldsky",
+    "careers_url": "https://jobs.ashbyhq.com/goldsky",
+    "category": "crypto-broader",
+    "source_ats": "ashby",
+    "source_endpoint": "https://api.ashbyhq.com/posting-api/job-board/goldsky"
+  },
+  {
+    "name": "Uniswap Labs",
+    "check_type": "ats_ashby",
+    "board_slug": "uniswap",
+    "careers_url": "https://jobs.ashbyhq.com/uniswap",
+    "category": "crypto-broader",
+    "source_ats": "ashby",
+    "source_endpoint": "https://api.ashbyhq.com/posting-api/job-board/uniswap"
+  },
+  {
+    "name": "Aave Labs",
+    "check_type": "ats_lever",
+    "board_slug": "aavelabs",
+    "careers_url": "https://jobs.eu.lever.co/aavelabs",
+    "category": "crypto-broader",
+    "source_ats": "lever_eu",
+    "source_endpoint": "https://api.eu.lever.co/v0/postings/aavelabs?mode=json"
+  },
+  {
+    "name": "Ethena Labs",
+    "check_type": "ats_lever",
+    "board_slug": "ethenalabs",
+    "careers_url": "https://jobs.lever.co/ethenalabs",
+    "category": "crypto-broader",
+    "source_ats": "lever",
+    "source_endpoint": "https://api.lever.co/v0/postings/ethenalabs?mode=json"
+  },
+  {
+    "name": "Eigen Labs",
+    "check_type": "ats_ashby",
+    "board_slug": "eigen-labs",
+    "careers_url": "https://jobs.ashbyhq.com/eigen-labs",
+    "category": "crypto-broader",
+    "source_ats": "ashby",
+    "source_endpoint": "https://api.ashbyhq.com/posting-api/job-board/eigen-labs"
+  },
+  {
+    "name": "Monad Foundation",
+    "check_type": "ats_ashby",
+    "board_slug": "monad.foundation",
+    "careers_url": "https://jobs.ashbyhq.com/monad.foundation",
+    "category": "crypto-broader",
+    "source_ats": "ashby",
+    "source_endpoint": "https://api.ashbyhq.com/posting-api/job-board/monad.foundation"
+  },
+  {
+    "name": "Solana Foundation",
+    "check_type": "ats_ashby",
+    "board_slug": "Solana Foundation",
+    "careers_url": "https://jobs.ashbyhq.com/Solana%20Foundation",
+    "category": "crypto-broader",
+    "source_ats": "ashby",
+    "source_endpoint": "https://api.ashbyhq.com/posting-api/job-board/Solana%20Foundation"
+  },
+  {
+    "name": "Base",
+    "check_type": "ats_ashby",
+    "board_slug": "base",
+    "careers_url": "https://jobs.ashbyhq.com/base",
+    "category": "crypto-broader",
+    "source_ats": "ashby",
+    "source_endpoint": "https://api.ashbyhq.com/posting-api/job-board/base"
+  },
+  {
+    "name": "Coinbase",
+    "check_type": "ats_greenhouse",
+    "board_slug": "coinbase",
+    "careers_url": "https://job-boards.greenhouse.io/coinbase",
+    "category": "crypto-broader",
+    "source_ats": "greenhouse",
+    "source_endpoint": "https://boards-api.greenhouse.io/v1/boards/coinbase/jobs"
+  },
+  {
+    "name": "Kraken",
+    "check_type": "ats_ashby",
+    "board_slug": "kraken.com",
+    "careers_url": "https://jobs.ashbyhq.com/kraken.com",
+    "category": "crypto-broader",
+    "source_ats": "ashby",
+    "source_endpoint": "https://api.ashbyhq.com/posting-api/job-board/kraken.com"
+  },
+  {
+    "name": "Phantom",
+    "check_type": "ats_ashby",
+    "board_slug": "phantom",
+    "careers_url": "https://jobs.ashbyhq.com/phantom",
+    "category": "crypto-broader",
+    "source_ats": "ashby",
+    "source_endpoint": "https://api.ashbyhq.com/posting-api/job-board/phantom"
+  },
+  {
+    "name": "OpenSea",
+    "check_type": "ats_ashby",
+    "board_slug": "opensea",
+    "careers_url": "https://jobs.ashbyhq.com/opensea",
+    "category": "crypto-broader",
+    "source_ats": "ashby",
+    "source_endpoint": "https://api.ashbyhq.com/posting-api/job-board/opensea"
+  },
+  {
+    "name": "Fireblocks",
+    "check_type": "ats_greenhouse",
+    "board_slug": "fireblocks",
+    "careers_url": "https://job-boards.greenhouse.io/fireblocks",
+    "category": "crypto-broader",
+    "source_ats": "greenhouse",
+    "source_endpoint": "https://boards-api.greenhouse.io/v1/boards/fireblocks/jobs"
+  },
+  {
+    "name": "Anchorage Digital",
+    "check_type": "ats_lever",
+    "board_slug": "anchorage",
+    "careers_url": "https://jobs.lever.co/anchorage",
+    "category": "crypto-broader",
+    "source_ats": "lever",
+    "source_endpoint": "https://api.lever.co/v0/postings/anchorage?mode=json"
+  },
+  {
+    "name": "Paradigm",
+    "check_type": "ats_ashby",
+    "board_slug": "paradigm",
+    "careers_url": "https://jobs.ashbyhq.com/paradigm",
+    "category": "crypto-broader",
+    "source_ats": "ashby",
+    "source_endpoint": "https://api.ashbyhq.com/posting-api/job-board/paradigm"
+  },
+  {
+    "name": "a16z",
+    "check_type": "ats_greenhouse",
+    "board_slug": "a16z",
+    "careers_url": "https://job-boards.greenhouse.io/a16z",
+    "category": "crypto-broader",
+    "source_ats": "greenhouse",
+    "source_endpoint": "https://boards-api.greenhouse.io/v1/boards/a16z/jobs"
+  },
+  {
+    "name": "Ramp",
+    "check_type": "ats_ashby",
+    "board_slug": "ramp",
+    "careers_url": "https://jobs.ashbyhq.com/ramp",
+    "category": "non-crypto-data",
+    "source_ats": "ashby",
+    "source_endpoint": "https://api.ashbyhq.com/posting-api/job-board/ramp"
+  },
+  {
+    "name": "Mercury",
+    "check_type": "ats_greenhouse",
+    "board_slug": "mercury",
+    "careers_url": "https://job-boards.greenhouse.io/mercury",
+    "category": "non-crypto-data",
+    "source_ats": "greenhouse",
+    "source_endpoint": "https://boards-api.greenhouse.io/v1/boards/mercury/jobs"
+  },
+  {
+    "name": "Brex",
+    "check_type": "ats_greenhouse",
+    "board_slug": "brex",
+    "careers_url": "https://job-boards.greenhouse.io/brex",
+    "category": "non-crypto-data",
+    "source_ats": "greenhouse",
+    "source_endpoint": "https://boards-api.greenhouse.io/v1/boards/brex/jobs"
+  },
+  {
+    "name": "Robinhood",
+    "check_type": "ats_greenhouse",
+    "board_slug": "robinhood",
+    "careers_url": "https://job-boards.greenhouse.io/robinhood",
+    "category": "non-crypto-data",
+    "source_ats": "greenhouse",
+    "source_endpoint": "https://boards-api.greenhouse.io/v1/boards/robinhood/jobs"
+  },
+  {
+    "name": "Chime",
+    "check_type": "ats_greenhouse",
+    "board_slug": "chime",
+    "careers_url": "https://job-boards.greenhouse.io/chime",
+    "category": "non-crypto-data",
+    "source_ats": "greenhouse",
+    "source_endpoint": "https://boards-api.greenhouse.io/v1/boards/chime/jobs"
+  },
+  {
+    "name": "Affirm",
+    "check_type": "ats_greenhouse",
+    "board_slug": "affirm",
+    "careers_url": "https://job-boards.greenhouse.io/affirm",
+    "category": "non-crypto-data",
+    "source_ats": "greenhouse",
+    "source_endpoint": "https://boards-api.greenhouse.io/v1/boards/affirm/jobs"
+  },
+  {
+    "name": "Toast",
+    "check_type": "ats_greenhouse",
+    "board_slug": "toast",
+    "careers_url": "https://job-boards.greenhouse.io/toast",
+    "category": "non-crypto-data",
+    "source_ats": "greenhouse",
+    "source_endpoint": "https://boards-api.greenhouse.io/v1/boards/toast/jobs"
+  },
+  {
+    "name": "Datadog",
+    "check_type": "ats_greenhouse",
+    "board_slug": "datadog",
+    "careers_url": "https://job-boards.greenhouse.io/datadog",
+    "category": "non-crypto-data",
+    "source_ats": "greenhouse",
+    "source_endpoint": "https://boards-api.greenhouse.io/v1/boards/datadog/jobs"
+  },
+  {
+    "name": "dbt Labs",
+    "check_type": "ats_greenhouse",
+    "board_slug": "dbtlabsinc",
+    "careers_url": "https://job-boards.greenhouse.io/dbtlabsinc",
+    "category": "non-crypto-data",
+    "source_ats": "greenhouse",
+    "source_endpoint": "https://boards-api.greenhouse.io/v1/boards/dbtlabsinc/jobs"
+  },
+  {
+    "name": "Fivetran",
+    "check_type": "ats_greenhouse",
+    "board_slug": "fivetran",
+    "careers_url": "https://job-boards.greenhouse.io/fivetran",
+    "category": "non-crypto-data",
+    "source_ats": "greenhouse",
+    "source_endpoint": "https://boards-api.greenhouse.io/v1/boards/fivetran/jobs"
+  },
+  {
+    "name": "Sigma Computing",
+    "check_type": "ats_greenhouse",
+    "board_slug": "sigmacomputing",
+    "careers_url": "https://job-boards.greenhouse.io/sigmacomputing",
+    "category": "non-crypto-data",
+    "source_ats": "greenhouse",
+    "source_endpoint": "https://boards-api.greenhouse.io/v1/boards/sigmacomputing/jobs"
+  },
+  {
+    "name": "Amplitude",
+    "check_type": "ats_greenhouse",
+    "board_slug": "amplitude",
+    "careers_url": "https://job-boards.greenhouse.io/amplitude",
+    "category": "non-crypto-data",
+    "source_ats": "greenhouse",
+    "source_endpoint": "https://boards-api.greenhouse.io/v1/boards/amplitude/jobs"
+  },
+  {
+    "name": "Mixpanel",
+    "check_type": "ats_greenhouse",
+    "board_slug": "mixpanel",
+    "careers_url": "https://job-boards.greenhouse.io/mixpanel",
+    "category": "non-crypto-data",
+    "source_ats": "greenhouse",
+    "source_endpoint": "https://boards-api.greenhouse.io/v1/boards/mixpanel/jobs"
+  },
+  {
+    "name": "Airtable",
+    "check_type": "ats_greenhouse",
+    "board_slug": "airtable",
+    "careers_url": "https://job-boards.greenhouse.io/airtable",
+    "category": "non-crypto-data",
+    "source_ats": "greenhouse",
+    "source_endpoint": "https://boards-api.greenhouse.io/v1/boards/airtable/jobs"
+  },
+  {
+    "name": "Vanta",
+    "check_type": "ats_ashby",
+    "board_slug": "vanta",
+    "careers_url": "https://jobs.ashbyhq.com/vanta",
+    "category": "non-crypto-data",
+    "source_ats": "ashby",
+    "source_endpoint": "https://api.ashbyhq.com/posting-api/job-board/vanta"
+  },
+  {
+    "name": "Discord",
+    "check_type": "ats_greenhouse",
+    "board_slug": "discord",
+    "careers_url": "https://job-boards.greenhouse.io/discord",
+    "category": "non-crypto-data",
+    "source_ats": "greenhouse",
+    "source_endpoint": "https://boards-api.greenhouse.io/v1/boards/discord/jobs"
+  },
+  {
+    "name": "Reddit",
+    "check_type": "ats_greenhouse",
+    "board_slug": "reddit",
+    "careers_url": "https://job-boards.greenhouse.io/reddit",
+    "category": "non-crypto-data",
+    "source_ats": "greenhouse",
+    "source_endpoint": "https://boards-api.greenhouse.io/v1/boards/reddit/jobs"
+  },
+  {
+    "name": "Instacart",
+    "check_type": "ats_greenhouse",
+    "board_slug": "instacart",
+    "careers_url": "https://job-boards.greenhouse.io/instacart",
+    "category": "non-crypto-data",
+    "source_ats": "greenhouse",
+    "source_endpoint": "https://boards-api.greenhouse.io/v1/boards/instacart/jobs"
+  },
+  {
+    "name": "DoorDash",
+    "check_type": "ats_greenhouse",
+    "board_slug": "doordashusa",
+    "careers_url": "https://job-boards.greenhouse.io/doordashusa",
+    "category": "non-crypto-data",
+    "source_ats": "greenhouse",
+    "source_endpoint": "https://boards-api.greenhouse.io/v1/boards/doordashusa/jobs"
+  },
+  {
+    "name": "Airbnb",
+    "check_type": "ats_greenhouse",
+    "board_slug": "airbnb",
+    "careers_url": "https://job-boards.greenhouse.io/airbnb",
+    "category": "non-crypto-data",
+    "source_ats": "greenhouse",
+    "source_endpoint": "https://boards-api.greenhouse.io/v1/boards/airbnb/jobs"
+  },
+  {
+    "name": "Faire",
+    "check_type": "ats_greenhouse",
+    "board_slug": "faire",
+    "careers_url": "https://job-boards.greenhouse.io/faire",
+    "category": "non-crypto-data",
+    "source_ats": "greenhouse",
+    "source_endpoint": "https://boards-api.greenhouse.io/v1/boards/faire/jobs"
+  },
+  {
+    "name": "Scale AI",
+    "check_type": "ats_greenhouse",
+    "board_slug": "scaleai",
+    "careers_url": "https://job-boards.greenhouse.io/scaleai",
+    "category": "non-crypto-data",
+    "source_ats": "greenhouse",
+    "source_endpoint": "https://boards-api.greenhouse.io/v1/boards/scaleai/jobs"
+  },
+  {
+    "name": "Anthropic",
+    "check_type": "ats_greenhouse",
+    "board_slug": "anthropic",
+    "careers_url": "https://job-boards.greenhouse.io/anthropic",
+    "category": "non-crypto-data",
+    "source_ats": "greenhouse",
+    "source_endpoint": "https://boards-api.greenhouse.io/v1/boards/anthropic/jobs"
+  },
+  {
+    "name": "Perplexity",
+    "check_type": "ats_ashby",
+    "board_slug": "perplexity",
+    "careers_url": "https://jobs.ashbyhq.com/perplexity",
+    "category": "non-crypto-data",
+    "source_ats": "ashby",
+    "source_endpoint": "https://api.ashbyhq.com/posting-api/job-board/perplexity"
+  },
+  {
+    "name": "Replit",
+    "check_type": "ats_ashby",
+    "board_slug": "replit",
+    "careers_url": "https://jobs.ashbyhq.com/replit",
+    "category": "non-crypto-data",
+    "source_ats": "ashby",
+    "source_endpoint": "https://api.ashbyhq.com/posting-api/job-board/replit"
+  },
+  {
+    "name": "Vercel",
+    "check_type": "ats_greenhouse",
+    "board_slug": "vercel",
+    "careers_url": "https://job-boards.greenhouse.io/vercel",
+    "category": "non-crypto-data",
+    "source_ats": "greenhouse",
+    "source_endpoint": "https://boards-api.greenhouse.io/v1/boards/vercel/jobs"
+  }
+]

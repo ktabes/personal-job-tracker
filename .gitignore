@@ -1,6 +1,8 @@
 node_modules
 dist
-data
+data/*
+!data/targets/
+!data/targets/*.json
 .env
 .DS_Store
 npm-debug.log*

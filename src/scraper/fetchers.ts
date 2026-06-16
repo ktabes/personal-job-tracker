@@ -37,7 +37,7 @@ async function fetchRolesForTarget(target: TargetRow): Promise<ParsedRole[]> {
     case "ats_ashby":
       return fetchAshbyRoles(requiredBoardSlug(target));
     case "ats_lever":
-      return fetchLeverRoles(requiredBoardSlug(target));
+      return fetchLeverRoles(requiredBoardSlug(target), target.careers_url);
     case "html":
       return fetchHtmlStructuredRoles(requiredCareersUrl(target));
     case "manual":
@@ -81,8 +81,9 @@ async function fetchAshbyRoles(boardSlug: string): Promise<ParsedRole[]> {
   });
 }
 
-async function fetchLeverRoles(boardSlug: string): Promise<ParsedRole[]> {
-  const url = `https://api.lever.co/v0/postings/${encodeURIComponent(boardSlug)}?mode=json`;
+async function fetchLeverRoles(boardSlug: string, careersUrl: string | null): Promise<ParsedRole[]> {
+  const apiBaseUrl = careersUrl?.includes("jobs.eu.lever.co") ? "https://api.eu.lever.co" : "https://api.lever.co";
+  const url = `${apiBaseUrl}/v0/postings/${encodeURIComponent(boardSlug)}?mode=json`;
   const json = await fetchJson(url);
   if (!Array.isArray(json)) {
     throw new Error("Lever response was not an array");

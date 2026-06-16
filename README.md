@@ -86,6 +86,24 @@ How to find common ATS slugs:
 
 Use `manual` for Notion pages, email-only flows, GitHub PR application flows, Twitter-only posts, or anything that should not be scraped. Use `html` only when the page exposes JSON-LD `JobPosting` data; otherwise the bot marks the check as failed rather than guessing.
 
+## Importing the Crypto/Data Target Seed
+
+This repo includes a seed file from the 2026-06-16 crypto/data target inventory:
+
+```text
+data/targets/crypto-data-api-verified-2026-06-16.json
+```
+
+It contains only the 57 API-verified Greenhouse, Ashby, and Lever rows. Manual/API-failed checks and structured-HTML candidates are intentionally excluded. Aave is included as `ats_lever`; the fetcher detects `jobs.eu.lever.co` and uses Lever's EU API host for that target.
+
+Import the seed into the configured SQLite database:
+
+```bash
+npm run targets:import:crypto-data
+```
+
+The importer skips rows already present with the same name, check type, slug, and careers URL.
+
 ## Open Roles Refresh
 
 `open_roles` is a current snapshot table. Every scan preserves prior `first_seen_at` values in memory, clears `open_roles`, and inserts the current successful scrape results. Failed and manual targets do not insert stale roles. Application records are copied into `applications` at apply time and are never joined back to `open_roles` for core application data.

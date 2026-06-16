@@ -42,6 +42,17 @@ const examples: TargetRow[] = [
     last_check_status: null,
     last_checked_at: null,
     active: 1
+  },
+  {
+    id: 4,
+    name: "Example Lever EU",
+    check_type: "ats_lever",
+    board_slug: "aavelabs",
+    careers_url: "https://jobs.eu.lever.co/aavelabs",
+    category: "smoke",
+    last_check_status: null,
+    last_checked_at: null,
+    active: 1
   }
 ];
 
