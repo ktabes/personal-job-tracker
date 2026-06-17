@@ -27,6 +27,14 @@ export const commandDefinitions: RESTPostAPIChatInputApplicationCommandsJSONBody
     ),
   new SlashCommandBuilder().setName("applications").setDescription("Show active applications."),
   new SlashCommandBuilder()
+    .setName("application")
+    .setDescription("Add an application that was found outside the scan.")
+    .addSubcommand((subcommand) =>
+      subcommand
+        .setName("add")
+        .setDescription("Manually add an active application.")
+    ),
+  new SlashCommandBuilder()
     .setName("history")
     .setDescription("Show recent closed applications.")
     .addIntegerOption((option) =>

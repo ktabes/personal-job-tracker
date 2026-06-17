@@ -74,6 +74,9 @@ export class InteractionHandler {
         await interaction.deferReply({ flags: MessageFlags.Ephemeral });
         await replyWithMessages(interaction, buildActiveApplicationsDigest(this.repository.listActiveApplications()));
         return;
+      case "application":
+        await this.handleApplicationCommand(interaction);
+        return;
       case "history":
         await interaction.deferReply({ flags: MessageFlags.Ephemeral });
         await replyWithMessages(
@@ -105,6 +108,13 @@ export class InteractionHandler {
     this.repository.markRolesReported(report.reportedRoles, reportWindow);
     const scope = category ? ` for category ${category}` : "";
     await interaction.editReply(`Open roles scan${scope} finished and the ${mode} report was posted to the configured channel.`);
+  }
+
+  private async handleApplicationCommand(interaction: ChatInputCommandInteraction): Promise<void> {
+    const subcommand = interaction.options.getSubcommand();
+    if (subcommand === "add") {
+      await interaction.showModal(buildManualApplicationModal());
+    }
   }
 
   private async handleTargetsCommand(interaction: ChatInputCommandInteraction): Promise<void> {
@@ -235,6 +245,39 @@ export class InteractionHandler {
   private async handleModal(interaction: ModalSubmitInteraction): Promise<void> {
     const [kind, first, second] = interaction.customId.split(":");
 
+    if (kind === "manual_application_modal") {
+      const company = interaction.fields.getTextInputValue("manual_application_company").trim();
+      const roleTitle = interaction.fields.getTextInputValue("manual_application_role_title").trim();
+      const applyUrl = emptyToNull(interaction.fields.getTextInputValue("manual_application_apply_url"));
+      const dateApplied = interaction.fields.getTextInputValue("manual_application_date_applied").trim();
+      const notes = emptyToNull(interaction.fields.getTextInputValue("manual_application_notes"));
+
+      if (!company || !roleTitle) {
+        await interaction.reply({
+          content: "Company and role title are required.",
+          flags: MessageFlags.Ephemeral
+        });
+        return;
+      }
+
+      if (!isIsoDate(dateApplied)) {
+        await interaction.reply({
+          content: "Date applied must use YYYY-MM-DD.",
+          flags: MessageFlags.Ephemeral
+        });
+        return;
+      }
+
+      const result = this.repository.createManualApplication({ company, roleTitle, applyUrl, dateApplied, notes });
+      await interaction.reply({
+        content: result.created
+          ? `Tracked application #${result.application.id}: ${result.application.company} - ${result.application.role_title}.`
+          : `Already tracking active application #${result.application.id}: ${result.application.company} - ${result.application.role_title}.`,
+        flags: MessageFlags.Ephemeral
+      });
+      return;
+    }
+
     if (kind === "update_modal") {
       const applicationId = parseIntegerId(first);
       const heardBackDate = readOptionalDate(interaction, "update_heard_back", "heard-back date");
@@ -356,6 +399,51 @@ function removeRoleLine(description: string, roleNumber: string | undefined): st
     .split("\n")
     .filter((line) => !line.startsWith(`**#${roleNumber} `))
     .join("\n");
+}
+
+function buildManualApplicationModal(): ModalBuilder {
+  return new ModalBuilder()
+    .setCustomId("manual_application_modal")
+    .setTitle("Add application")
+    .addComponents(
+      new ActionRowBuilder<TextInputBuilder>().addComponents(
+        new TextInputBuilder()
+          .setCustomId("manual_application_company")
+          .setLabel("Company")
+          .setStyle(TextInputStyle.Short)
+          .setRequired(true)
+      ),
+      new ActionRowBuilder<TextInputBuilder>().addComponents(
+        new TextInputBuilder()
+          .setCustomId("manual_application_role_title")
+          .setLabel("Role title")
+          .setStyle(TextInputStyle.Short)
+          .setRequired(true)
+      ),
+      new ActionRowBuilder<TextInputBuilder>().addComponents(
+        new TextInputBuilder()
+          .setCustomId("manual_application_apply_url")
+          .setLabel("Apply URL")
+          .setStyle(TextInputStyle.Short)
+          .setRequired(false)
+      ),
+      new ActionRowBuilder<TextInputBuilder>().addComponents(
+        new TextInputBuilder()
+          .setCustomId("manual_application_date_applied")
+          .setLabel("Date applied")
+          .setPlaceholder("YYYY-MM-DD")
+          .setStyle(TextInputStyle.Short)
+          .setValue(todayIsoDateInTimezone(config.reportTimezone))
+          .setRequired(true)
+      ),
+      new ActionRowBuilder<TextInputBuilder>().addComponents(
+        new TextInputBuilder()
+          .setCustomId("manual_application_notes")
+          .setLabel("Notes")
+          .setStyle(TextInputStyle.Paragraph)
+          .setRequired(false)
+      )
+    );
 }
 
 function buildUpdateModal(applicationId: number): ModalBuilder {

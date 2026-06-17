@@ -33,6 +33,19 @@ interface UpdateApplicationInput {
   notes?: string | null;
 }
 
+interface CreateManualApplicationInput {
+  company: string;
+  roleTitle: string;
+  applyUrl: string | null;
+  dateApplied: string;
+  notes?: string | null;
+}
+
+interface CreateApplicationResult {
+  application: ApplicationRow;
+  created: boolean;
+}
+
 interface CloseApplicationInput {
   subStatus: ClosedSubStatus;
   decisionDate: string;
@@ -322,6 +335,61 @@ export class JobTrackerRepository {
     this.deleteOpenRole(role.id);
     this.regenerateCsv();
     return application;
+  }
+
+  createManualApplication(input: CreateManualApplicationInput): CreateApplicationResult {
+    const company = input.company.trim();
+    const roleTitle = input.roleTitle.trim();
+    const applyUrl = emptyToNull(input.applyUrl);
+    const notes = emptyToNull(input.notes);
+
+    if (!company) {
+      throw new Error("Company cannot be blank");
+    }
+    if (!roleTitle) {
+      throw new Error("Role title cannot be blank");
+    }
+
+    const existing = this.db
+      .prepare(
+        `SELECT * FROM applications
+         WHERE status = 'active'
+           AND lower(company) = lower(?)
+           AND lower(role_title) = lower(?)
+           AND COALESCE(apply_url, '') = COALESCE(?, '')
+         ORDER BY id DESC
+         LIMIT 1`
+      )
+      .get(company, roleTitle, applyUrl) as ApplicationRow | undefined;
+
+    if (existing) {
+      return { application: existing, created: false };
+    }
+
+    const timestamp = nowIso();
+    const info = this.db
+      .prepare(
+        `INSERT INTO applications (
+          company,
+          role_title,
+          apply_url,
+          date_applied,
+          status,
+          sub_status,
+          heard_back_date,
+          interview_dates,
+          decision_date,
+          reason,
+          notes,
+          created_at,
+          updated_at
+        ) VALUES (?, ?, ?, ?, 'active', NULL, NULL, '[]', NULL, NULL, ?, ?, ?)`
+      )
+      .run(company, roleTitle, applyUrl, input.dateApplied, notes, timestamp, timestamp);
+
+    const application = this.getApplication(Number(info.lastInsertRowid));
+    this.regenerateCsv();
+    return { application, created: true };
   }
 
   private markRoleApplied(role: OpenRoleWithTarget, applicationId: number): void {
