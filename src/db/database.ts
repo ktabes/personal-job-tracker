@@ -82,6 +82,32 @@ function initSchema(database: Database.Database): void {
     );
 
     CREATE UNIQUE INDEX IF NOT EXISTS idx_keywords_kind_term ON keywords(kind, term);
+
+    CREATE TABLE IF NOT EXISTS role_report_history (
+      id INTEGER PRIMARY KEY,
+      target_id INTEGER NOT NULL REFERENCES targets(id) ON DELETE CASCADE,
+      role_key TEXT NOT NULL,
+      report_window TEXT NOT NULL,
+      reported_at TEXT NOT NULL,
+      UNIQUE(target_id, role_key, report_window)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_role_report_history_window ON role_report_history(report_window);
+    CREATE INDEX IF NOT EXISTS idx_role_report_history_role ON role_report_history(target_id, role_key);
+
+    CREATE TABLE IF NOT EXISTS applied_roles (
+      id INTEGER PRIMARY KEY,
+      application_id INTEGER NOT NULL REFERENCES applications(id) ON DELETE CASCADE,
+      target_id INTEGER NOT NULL REFERENCES targets(id) ON DELETE CASCADE,
+      role_key TEXT NOT NULL,
+      company TEXT NOT NULL,
+      role_title TEXT NOT NULL,
+      apply_url TEXT,
+      applied_at TEXT NOT NULL,
+      UNIQUE(target_id, role_key)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_applied_roles_role ON applied_roles(target_id, role_key);
   `);
 }
 

@@ -1,0 +1,299 @@
+[
+  {
+    "name": "Euler",
+    "check_type": "manual",
+    "board_slug": null,
+    "careers_url": "https://www.euler.finance/careers",
+    "category": "hyperevm-hyperliquid",
+    "source_ats": "manual; manual_check",
+    "source_endpoint": "manual"
+  },
+  {
+    "name": "Pendle",
+    "check_type": "manual",
+    "board_slug": null,
+    "careers_url": "https://pendle.finance/careers",
+    "category": "hyperevm-hyperliquid",
+    "source_ats": "manual; manual_check",
+    "source_endpoint": "manual"
+  },
+  {
+    "name": "Kinetiq",
+    "check_type": "manual",
+    "board_slug": null,
+    "careers_url": "https://kinetiq.xyz",
+    "category": "hyperevm-hyperliquid",
+    "source_ats": "manual; manual_check",
+    "source_endpoint": "manual"
+  },
+  {
+    "name": "HyperLend",
+    "check_type": "manual",
+    "board_slug": null,
+    "careers_url": "https://hyperlend.finance",
+    "category": "hyperevm-hyperliquid",
+    "source_ats": "manual; manual_check",
+    "source_endpoint": "manual"
+  },
+  {
+    "name": "Felix Protocol",
+    "check_type": "manual",
+    "board_slug": null,
+    "careers_url": "https://www.usefelix.xyz",
+    "category": "hyperevm-hyperliquid",
+    "source_ats": "manual; manual_check",
+    "source_endpoint": "manual"
+  },
+  {
+    "name": "Hyperbeat",
+    "check_type": "manual",
+    "board_slug": null,
+    "careers_url": "https://hyperbeat.org",
+    "category": "hyperevm-hyperliquid",
+    "source_ats": "manual; manual_check",
+    "source_endpoint": "manual"
+  },
+  {
+    "name": "Liminal",
+    "check_type": "manual",
+    "board_slug": null,
+    "careers_url": "https://liminal.money",
+    "category": "hyperevm-hyperliquid",
+    "source_ats": "manual; manual_check",
+    "source_endpoint": "manual"
+  },
+  {
+    "name": "HyperSwap",
+    "check_type": "manual",
+    "board_slug": null,
+    "careers_url": "https://hyperswap.exchange",
+    "category": "hyperevm-hyperliquid",
+    "source_ats": "manual; manual_check",
+    "source_endpoint": "manual"
+  },
+  {
+    "name": "Sentiment",
+    "check_type": "manual",
+    "board_slug": null,
+    "careers_url": "https://sentiment.xyz",
+    "category": "hyperevm-hyperliquid",
+    "source_ats": "manual; manual_check",
+    "source_endpoint": "manual"
+  },
+  {
+    "name": "Valantis Labs / stHYPE",
+    "check_type": "manual",
+    "board_slug": null,
+    "careers_url": "https://www.valantis.xyz",
+    "category": "hyperevm-hyperliquid",
+    "source_ats": "manual; manual_check",
+    "source_endpoint": "manual"
+  },
+  {
+    "name": "Hyperdrive",
+    "check_type": "manual",
+    "board_slug": null,
+    "careers_url": "https://hyperdrive.fi",
+    "category": "hyperevm-hyperliquid",
+    "source_ats": "manual; manual_check",
+    "source_endpoint": "manual"
+  },
+  {
+    "name": "Project X",
+    "check_type": "manual",
+    "board_slug": null,
+    "careers_url": "https://www.prjx.com",
+    "category": "hyperevm-hyperliquid",
+    "source_ats": "manual; manual_check",
+    "source_endpoint": "manual"
+  },
+  {
+    "name": "Kittenswap",
+    "check_type": "manual",
+    "board_slug": null,
+    "careers_url": "https://kittenswap.finance",
+    "category": "hyperevm-hyperliquid",
+    "source_ats": "manual; manual_check",
+    "source_endpoint": "manual"
+  },
+  {
+    "name": "Rysk",
+    "check_type": "manual",
+    "board_slug": null,
+    "careers_url": "https://www.rysk.finance",
+    "category": "hyperevm-hyperliquid",
+    "source_ats": "manual; manual_check",
+    "source_endpoint": "manual"
+  },
+  {
+    "name": "Giza",
+    "check_type": "manual",
+    "board_slug": null,
+    "careers_url": "https://www.gizatech.xyz",
+    "category": "hyperevm-hyperliquid",
+    "source_ats": "manual; manual_check",
+    "source_endpoint": "manual"
+  },
+  {
+    "name": "Timeswap",
+    "check_type": "manual",
+    "board_slug": null,
+    "careers_url": "https://timeswap.io",
+    "category": "hyperevm-hyperliquid",
+    "source_ats": "manual; manual_check",
+    "source_endpoint": "manual"
+  },
+  {
+    "name": "Sablier",
+    "check_type": "manual",
+    "board_slug": null,
+    "careers_url": "https://sablier.com/jobs",
+    "category": "hyperevm-hyperliquid",
+    "source_ats": "manual; manual_check",
+    "source_endpoint": "manual"
+  },
+  {
+    "name": "Midas",
+    "check_type": "manual",
+    "board_slug": null,
+    "careers_url": "https://midas.app",
+    "category": "hyperevm-hyperliquid",
+    "source_ats": "manual; manual_check",
+    "source_endpoint": "manual"
+  },
+  {
+    "name": "Coin Metrics",
+    "check_type": "manual",
+    "board_slug": null,
+    "careers_url": "https://jobs.lever.co/coinmetrics",
+    "category": "crypto-broader",
+    "source_ats": "lever; api_failed_manual_check",
+    "source_endpoint": "https://api.lever.co/v0/postings/coinmetrics?mode=json"
+  },
+  {
+    "name": "Kaiko",
+    "check_type": "manual",
+    "board_slug": null,
+    "careers_url": "https://job-boards.greenhouse.io/kaiko",
+    "category": "crypto-broader",
+    "source_ats": "greenhouse; api_failed_manual_check",
+    "source_endpoint": "https://boards-api.greenhouse.io/v1/boards/kaiko/jobs"
+  },
+  {
+    "name": "Arkham",
+    "check_type": "manual",
+    "board_slug": null,
+    "careers_url": "https://jobs.lever.co/arkhamintelligence",
+    "category": "crypto-broader",
+    "source_ats": "lever; api_failed_manual_check",
+    "source_endpoint": "https://api.lever.co/v0/postings/arkhamintelligence?mode=json"
+  },
+  {
+    "name": "Artemis",
+    "check_type": "manual",
+    "board_slug": null,
+    "careers_url": "https://www.artemis.xyz/careers",
+    "category": "crypto-broader",
+    "source_ats": "manual; manual_check",
+    "source_endpoint": "manual"
+  },
+  {
+    "name": "Token Terminal",
+    "check_type": "manual",
+    "board_slug": null,
+    "careers_url": "https://tokenterminal.com/careers",
+    "category": "crypto-broader",
+    "source_ats": "manual; manual_check",
+    "source_endpoint": "manual"
+  },
+  {
+    "name": "DeFiLlama",
+    "check_type": "manual",
+    "board_slug": null,
+    "careers_url": "https://defillama.com",
+    "category": "crypto-broader",
+    "source_ats": "manual; manual_check",
+    "source_endpoint": "manual"
+  },
+  {
+    "name": "Chainlink Labs",
+    "check_type": "manual",
+    "board_slug": null,
+    "careers_url": "https://jobs.ashbyhq.com/chainlink-labs",
+    "category": "crypto-broader",
+    "source_ats": "manual; manual_check",
+    "source_endpoint": "manual"
+  },
+  {
+    "name": "The Graph Foundation / Edge & Node",
+    "check_type": "manual",
+    "board_slug": null,
+    "careers_url": "https://job-boards.greenhouse.io/edgeandnode",
+    "category": "crypto-broader",
+    "source_ats": "greenhouse; api_failed_manual_check",
+    "source_endpoint": "https://boards-api.greenhouse.io/v1/boards/edgeandnode/jobs"
+  },
+  {
+    "name": "Covalent",
+    "check_type": "manual",
+    "board_slug": null,
+    "careers_url": "https://www.covalenthq.com/careers",
+    "category": "crypto-broader",
+    "source_ats": "manual; manual_check",
+    "source_endpoint": "manual"
+  },
+  {
+    "name": "Berachain",
+    "check_type": "manual",
+    "board_slug": null,
+    "careers_url": "https://careers.berachain.com/",
+    "category": "crypto-broader",
+    "source_ats": "manual; manual_check",
+    "source_endpoint": "manual"
+  },
+  {
+    "name": "Plaid",
+    "check_type": "manual",
+    "board_slug": null,
+    "careers_url": "https://plaid.com/careers/",
+    "category": "non-crypto-data",
+    "source_ats": "manual; manual_check",
+    "source_endpoint": "manual"
+  },
+  {
+    "name": "Hex",
+    "check_type": "manual",
+    "board_slug": null,
+    "careers_url": "https://hex.tech/careers/",
+    "category": "non-crypto-data",
+    "source_ats": "manual; manual_check",
+    "source_endpoint": "manual"
+  },
+  {
+    "name": "Retool",
+    "check_type": "manual",
+    "board_slug": null,
+    "careers_url": "https://jobs.gem.com/retool",
+    "category": "non-crypto-data",
+    "source_ats": "manual; manual_check",
+    "source_endpoint": "manual"
+  },
+  {
+    "name": "Rippling",
+    "check_type": "manual",
+    "board_slug": null,
+    "careers_url": "https://www.rippling.com/careers",
+    "category": "non-crypto-data",
+    "source_ats": "manual; manual_check",
+    "source_endpoint": "manual"
+  },
+  {
+    "name": "Notion",
+    "check_type": "manual",
+    "board_slug": null,
+    "careers_url": "https://www.notion.com/careers",
+    "category": "non-crypto-data",
+    "source_ats": "manual; manual_check",
+    "source_endpoint": "manual"
+  }
+]

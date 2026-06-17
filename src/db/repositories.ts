@@ -37,6 +37,9 @@ interface CloseApplicationInput {
   notes?: string | null;
 }
 
+const ROLE_KEY_SQL =
+  "CASE WHEN open_roles.external_id IS NOT NULL AND open_roles.external_id <> '' THEN 'external:' || open_roles.external_id ELSE 'url:' || open_roles.apply_url || ':title:' || open_roles.title END";
+
 export class JobTrackerRepository {
   constructor(private readonly db: Database.Database) {}
 
@@ -147,6 +150,53 @@ export class JobTrackerRepository {
       .all() as OpenRoleWithTarget[];
   }
 
+  listReportableOpenRolesWithTargets(reportWindow: string): OpenRoleWithTarget[] {
+    return this.db
+      .prepare(
+        `SELECT open_roles.*, targets.name AS company, targets.last_check_status AS target_check_status
+         FROM open_roles
+         JOIN targets ON targets.id = open_roles.target_id
+         WHERE NOT EXISTS (
+           SELECT 1
+           FROM role_report_history
+           WHERE role_report_history.target_id = open_roles.target_id
+             AND role_report_history.role_key = ${ROLE_KEY_SQL}
+             AND role_report_history.report_window = ?
+         )
+           AND NOT EXISTS (
+             SELECT 1
+             FROM applied_roles
+             WHERE applied_roles.target_id = open_roles.target_id
+               AND applied_roles.role_key = ${ROLE_KEY_SQL}
+           )
+           AND NOT EXISTS (
+             SELECT 1
+             FROM applications
+             WHERE lower(applications.company) = lower(targets.name)
+               AND lower(applications.role_title) = lower(open_roles.title)
+               AND COALESCE(applications.apply_url, '') = open_roles.apply_url
+           )
+         ORDER BY lower(targets.name), lower(open_roles.title)`
+      )
+      .all(reportWindow) as OpenRoleWithTarget[];
+  }
+
+  markRolesReported(roles: OpenRoleWithTarget[], reportWindow: string, reportedAt = nowIso()): void {
+    if (roles.length === 0) return;
+
+    const insert = this.db.prepare(
+      `INSERT OR IGNORE INTO role_report_history (target_id, role_key, report_window, reported_at)
+       VALUES (?, ?, ?, ?)`
+    );
+    const transaction = this.db.transaction((items: OpenRoleWithTarget[]) => {
+      for (const role of items) {
+        insert.run(role.target_id, openRoleKey(role), reportWindow, reportedAt);
+      }
+    });
+
+    transaction(roles);
+  }
+
   getOpenRoleWithTarget(id: number): OpenRoleWithTarget | null {
     return (
       (this.db
@@ -173,7 +223,11 @@ export class JobTrackerRepository {
       )
       .get(role.company, role.title, role.apply_url) as ApplicationRow | undefined;
 
-    if (existing) return existing;
+    if (existing) {
+      this.markRoleApplied(role, existing.id);
+      this.deleteOpenRole(role.id);
+      return existing;
+    }
 
     const timestamp = nowIso();
     const info = this.db
@@ -197,8 +251,30 @@ export class JobTrackerRepository {
       .run(role.company, role.title, role.apply_url, dateApplied, timestamp, timestamp);
 
     const application = this.getApplication(Number(info.lastInsertRowid));
+    this.markRoleApplied(role, application.id);
+    this.deleteOpenRole(role.id);
     this.regenerateCsv();
     return application;
+  }
+
+  private markRoleApplied(role: OpenRoleWithTarget, applicationId: number): void {
+    this.db
+      .prepare(
+        `INSERT OR IGNORE INTO applied_roles (
+          application_id,
+          target_id,
+          role_key,
+          company,
+          role_title,
+          apply_url,
+          applied_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)`
+      )
+      .run(applicationId, role.target_id, openRoleKey(role), role.company, role.title, role.apply_url, nowIso());
+  }
+
+  private deleteOpenRole(id: number): void {
+    this.db.prepare("DELETE FROM open_roles WHERE id = ?").run(id);
   }
 
   listActiveApplications(): ApplicationRow[] {
@@ -306,6 +382,11 @@ function normalizeKeyword(term: string): string {
 function roleIdentity(role: Pick<NewOpenRole, "target_id" | "external_id" | "apply_url" | "title">): string {
   if (role.external_id) return `${role.target_id}:external:${role.external_id}`;
   return `${role.target_id}:url:${role.apply_url}:title:${role.title}`;
+}
+
+function openRoleKey(role: Pick<OpenRoleRow, "external_id" | "apply_url" | "title">): string {
+  if (role.external_id) return `external:${role.external_id}`;
+  return `url:${role.apply_url}:title:${role.title}`;
 }
 
 function parseInterviewDates(raw: string | null): string[] {

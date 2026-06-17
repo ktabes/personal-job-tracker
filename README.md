@@ -92,23 +92,32 @@ Use `manual` for Notion pages, email-only flows, GitHub PR application flows, Tw
 
 ## Importing the Crypto/Data Target Seed
 
-This repo includes a seed file from the 2026-06-16 crypto/data target inventory:
+This repo includes seed files from the 2026-06-16 crypto/data target inventory:
 
 ```text
 data/targets/crypto-data-api-verified-2026-06-16.json
+data/targets/crypto-data-manual-2026-06-16.json
 ```
 
-It contains only the 57 API-verified Greenhouse, Ashby, and Lever rows. Manual/API-failed checks and structured-HTML candidates are intentionally excluded. Aave is included as `ats_lever`; the fetcher detects `jobs.eu.lever.co` and uses Lever's EU API host for that target.
+The API seed contains the 57 API-verified Greenhouse, Ashby, and Lever rows. Aave is included as `ats_lever`; the fetcher detects `jobs.eu.lever.co` and uses Lever's EU API host for that target.
+
+The manual seed contains the 33 manual/API-failed targets. These are imported as `manual` so the bot reports them as manual-only checks instead of pretending they can be auto-scraped.
 
 Import the seed into the configured SQLite database:
 
 ```bash
-npm run targets:import:crypto-data
+npm run targets:import:all
 ```
 
 The importer skips rows already present with the same name, check type, slug, and careers URL.
 
 Railway also runs this import before starting the bot, so a fresh volume is seeded automatically on first deploy.
+
+## Report Suppression And Apply Safety
+
+Open-role reports use a daily report window in `REPORT_TIMEZONE`. The window starts at 9:00 AM America/New_York and runs until 8:59:59 AM the next day. A role shown once in that window is not shown again in later `/run` calls or the 5 PM same-day scan. At 9:00 AM the next day, the window changes and eligible roles can appear again.
+
+Clicking `Apply` copies the role into `applications`, removes that live role from `open_roles`, records the role identity in `applied_roles`, and regenerates the CSV. That applied role is excluded from future reports even if the company keeps the posting open.
 
 ## Open Roles Refresh
 

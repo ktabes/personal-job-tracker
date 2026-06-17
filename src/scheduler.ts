@@ -7,6 +7,7 @@ import { buildActiveApplicationsDigest } from "./reports/applications-report.js"
 import { buildOpenRolesReport } from "./reports/open-roles-report.js";
 import { scanTargets } from "./scraper/scanner.js";
 import { sendMessagesToConfiguredChannel } from "./discord/send.js";
+import { currentReportWindowKey } from "./time.js";
 
 export class ReportScheduler {
   private tasks: ScheduledTask[] = [];
@@ -47,7 +48,11 @@ export class ReportScheduler {
   private async postOpenRolesReport(): Promise<void> {
     try {
       const summary = await scanTargets(this.repository);
-      await sendMessagesToConfiguredChannel(this.client, buildOpenRolesReport(summary, this.repository));
+      const reportWindow = currentReportWindowKey(config.reportTimezone);
+      const reportableRoles = this.repository.listReportableOpenRolesWithTargets(reportWindow);
+      const report = buildOpenRolesReport(summary, reportableRoles);
+      await sendMessagesToConfiguredChannel(this.client, report.messages);
+      this.repository.markRolesReported(report.reportedRoles, reportWindow);
       logger.info("Posted scheduled open roles report");
     } catch (error) {
       logger.error("Scheduled open roles report failed", error);

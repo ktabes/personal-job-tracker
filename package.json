@@ -12,6 +12,8 @@
     "commands:register": "tsx src/register-commands.ts",
     "targets:import": "tsx src/import-targets.ts",
     "targets:import:crypto-data": "tsx src/import-targets.ts data/targets/crypto-data-api-verified-2026-06-16.json",
+    "targets:import:manual": "tsx src/import-targets.ts data/targets/crypto-data-manual-2026-06-16.json",
+    "targets:import:all": "npm run targets:import:crypto-data && npm run targets:import:manual",
     "smoke:fetchers": "tsx src/smoke-fetchers.ts"
   },
   "engines": {

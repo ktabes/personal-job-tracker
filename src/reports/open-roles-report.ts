@@ -6,7 +6,6 @@ import {
   type MessageActionRowComponentBuilder,
   type MessageCreateOptions
 } from "discord.js";
-import type { JobTrackerRepository } from "../db/repositories.js";
 import type { OpenRoleWithTarget } from "../types.js";
 import type { ScanSummary } from "../scraper/scanner.js";
 
@@ -16,6 +15,11 @@ const REPORT_COLOR = 0x2f80ed;
 
 type RoleBucket = "low" | "mid" | "high";
 export type OpenRolesReportMode = "focused" | "all" | "low" | "mid" | "high";
+
+export interface BuiltOpenRolesReport {
+  messages: MessageCreateOptions[];
+  reportedRoles: OpenRoleWithTarget[];
+}
 
 const ROLE_BUCKETS: Array<{ key: RoleBucket; title: string }> = [
   { key: "low", title: "Low-Level" },
@@ -60,11 +64,14 @@ const SENIOR_PATTERNS = [
 
 export function buildOpenRolesReport(
   summary: ScanSummary,
-  repository: JobTrackerRepository,
+  roles: OpenRoleWithTarget[],
   mode: OpenRolesReportMode = "focused"
-): MessageCreateOptions[] {
-  const roles = repository.listOpenRolesWithTargets();
-  return [buildStatusMessage(summary, roles, mode), ...buildRoleMessages(roles, mode)];
+): BuiltOpenRolesReport {
+  const includedRoles = filterRolesForMode(roles, mode);
+  return {
+    messages: [buildStatusMessage(summary, roles, includedRoles, mode), ...buildRoleMessages(includedRoles, mode)],
+    reportedRoles: includedRoles
+  };
 }
 
 function buildRoleMessages(roles: OpenRoleWithTarget[], mode: OpenRolesReportMode): MessageCreateOptions[] {
@@ -119,6 +126,7 @@ function buildBucketRoleMessages(bucketTitle: string, roles: OpenRoleWithTarget[
 function buildStatusMessage(
   summary: ScanSummary,
   roles: OpenRoleWithTarget[],
+  includedRoles: OpenRoleWithTarget[],
   mode: OpenRolesReportMode
 ): MessageCreateOptions {
   const failed = summary.outcomes.filter((outcome) => outcome.status === "failed");
@@ -135,6 +143,7 @@ function buildStatusMessage(
     `Low-level: ${bucketCounts.low}`,
     `Mid-level: ${bucketCounts.mid}`,
     `High-level: ${bucketCounts.high}`,
+    `Included in this report: ${includedRoles.length}`,
     `Report mode: ${reportModeLabel(mode)}`
   ];
 
@@ -231,6 +240,10 @@ function countBuckets(roles: OpenRoleWithTarget[]): Record<RoleBucket, number> {
     mid: bucketed.mid.length,
     high: bucketed.high.length
   };
+}
+
+function filterRolesForMode(roles: OpenRoleWithTarget[], mode: OpenRolesReportMode): OpenRoleWithTarget[] {
+  return roles.filter((role) => bucketIncluded(classifyRole(role), mode));
 }
 
 function bucketIncluded(bucket: RoleBucket, mode: OpenRolesReportMode): boolean {

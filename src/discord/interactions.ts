@@ -6,6 +6,7 @@ import {
   ButtonStyle,
   ChatInputCommandInteraction,
   Client,
+  EmbedBuilder,
   Interaction,
   type InteractionEditReplyOptions,
   type InteractionReplyOptions,
@@ -25,7 +26,7 @@ import { buildKeywordsReport, buildTargetsReport } from "../reports/admin-report
 import { buildActiveApplicationsDigest, buildClosedApplicationsHistory } from "../reports/applications-report.js";
 import { buildOpenRolesReport, type OpenRolesReportMode } from "../reports/open-roles-report.js";
 import { scanTargets } from "../scraper/scanner.js";
-import { isIsoDate, todayIsoDateInTimezone } from "../time.js";
+import { currentReportWindowKey, isIsoDate, todayIsoDateInTimezone } from "../time.js";
 import { CHECK_TYPES, CLOSED_SUB_STATUSES, type CheckType, type ClosedSubStatus, type KeywordKind } from "../types.js";
 import { sendMessagesToConfiguredChannel } from "./send.js";
 
@@ -88,7 +89,11 @@ export class InteractionHandler {
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
     const mode = parseOpenRolesReportMode(interaction.options.getString("mode") ?? "focused");
     const summary = await scanTargets(this.repository);
-    await sendMessagesToConfiguredChannel(this.client, buildOpenRolesReport(summary, this.repository, mode));
+    const reportWindow = currentReportWindowKey(config.reportTimezone);
+    const reportableRoles = this.repository.listReportableOpenRolesWithTargets(reportWindow);
+    const report = buildOpenRolesReport(summary, reportableRoles, mode);
+    await sendMessagesToConfiguredChannel(this.client, report.messages);
+    this.repository.markRolesReported(report.reportedRoles, reportWindow);
     await interaction.editReply(`Open roles scan finished and the ${mode} report was posted to the configured channel.`);
   }
 
@@ -160,6 +165,7 @@ export class InteractionHandler {
         role,
         todayIsoDateInTimezone(config.reportTimezone)
       );
+      await removeAppliedRoleFromSourceMessage(interaction, customId);
       await interaction.reply({
         content: `Tracked application #${application.id}: ${application.company} - ${application.role_title}.`,
         flags: MessageFlags.Ephemeral
@@ -290,6 +296,42 @@ function toInteractionReplyOptions(message: MessageCreateOptions): InteractionRe
     embeds: message.embeds,
     allowedMentions: message.allowedMentions
   };
+}
+
+async function removeAppliedRoleFromSourceMessage(interaction: ButtonInteraction, customId: string): Promise<void> {
+  const actionRows = interaction.message.components as Array<{ components: Array<{ type: number; customId?: string; label?: string }> }>;
+  const appliedButton = actionRows
+    .flatMap((row) => row.components)
+    .find((component) => component.type === 2 && component.customId === customId);
+  const roleNumber = appliedButton?.label?.match(/#(\d+)/)?.[1];
+  const originalEmbed = interaction.message.embeds[0];
+
+  const embeds = originalEmbed
+    ? [
+        EmbedBuilder.from(originalEmbed).setDescription(
+          removeRoleLine(originalEmbed.description ?? "", roleNumber)
+        )
+      ]
+    : [];
+
+  const components = actionRows
+    .map((row) => {
+      const buttons = row.components
+        .filter((component) => component.type === 2 && component.customId !== customId)
+        .map((component) => ButtonBuilder.from(component as never));
+      return buttons.length > 0 ? new ActionRowBuilder<MessageActionRowComponentBuilder>().addComponents(...buttons) : null;
+    })
+    .filter((row): row is ActionRowBuilder<MessageActionRowComponentBuilder> => row !== null);
+
+  await interaction.message.edit({ embeds, components }).catch(() => undefined);
+}
+
+function removeRoleLine(description: string, roleNumber: string | undefined): string {
+  if (!roleNumber) return description;
+  return description
+    .split("\n")
+    .filter((line) => !line.startsWith(`**#${roleNumber} `))
+    .join("\n");
 }
 
 function buildUpdateModal(applicationId: number): ModalBuilder {
