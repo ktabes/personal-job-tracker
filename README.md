@@ -58,7 +58,11 @@ The service also registers slash commands on startup, so `npm run commands:regis
 
 ## Discord Commands
 
-- `/run` - scan active targets and post the open roles report to `DISCORD_CHANNEL_ID`.
+- `/run` - scan active targets and post the focused low+mid open roles report to `DISCORD_CHANNEL_ID`.
+- `/run mode:low` - post only low-level/accessibly titled roles.
+- `/run mode:mid` - post only mid-level roles.
+- `/run mode:high` - post only high-level/senior roles.
+- `/run mode:all` - post every matching role, including senior/leadership roles.
 - `/applications` - show active applications with Update and Close controls.
 - `/history limit:<N>` - show recent closed applications.
 - `/keywords` - show include/exclude terms and open add/remove modals.
@@ -115,7 +119,7 @@ Railway also runs this import before starting the bot, so a fresh volume is seed
 Seeded include terms:
 
 ```text
-data engineer, analytics engineer, data analyst, data scientist, business intelligence, bi engineer, analytics, machine learning engineer, ml engineer, data infrastructure
+data engineer, analytics engineer, data analyst, data scientist, business intelligence, bi engineer, analytics, machine learning engineer, ml engineer, data infrastructure, analyst, product analyst, business analyst, operations analyst, strategy analyst, risk analyst, research analyst, growth analyst, financial analyst, reporting analyst, insights analyst, customer insights, data operations, data quality, business operations, strategy & operations, strategy and operations, growth associate, operations associate, research associate, data associate
 ```
 
 Seeded exclude terms:

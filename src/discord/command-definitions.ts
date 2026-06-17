@@ -3,7 +3,22 @@ import type { RESTPostAPIChatInputApplicationCommandsJSONBody } from "discord.js
 import { CHECK_TYPES } from "../types.js";
 
 export const commandDefinitions: RESTPostAPIChatInputApplicationCommandsJSONBody[] = [
-  new SlashCommandBuilder().setName("run").setDescription("Run the open-roles scan and post a report."),
+  new SlashCommandBuilder()
+    .setName("run")
+    .setDescription("Run the open-roles scan and post a report.")
+    .addStringOption((option) =>
+      option
+        .setName("mode")
+        .setDescription("Which roles to include in the posted report.")
+        .setRequired(false)
+        .addChoices(
+          { name: "Focused: low + mid", value: "focused" },
+          { name: "Low-level only", value: "low" },
+          { name: "Mid-level only", value: "mid" },
+          { name: "High-level only", value: "high" },
+          { name: "All roles", value: "all" },
+        )
+    ),
   new SlashCommandBuilder().setName("applications").setDescription("Show active applications."),
   new SlashCommandBuilder()
     .setName("history")

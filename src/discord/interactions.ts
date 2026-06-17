@@ -23,7 +23,7 @@ import { config } from "../config.js";
 import type { JobTrackerRepository } from "../db/repositories.js";
 import { buildKeywordsReport, buildTargetsReport } from "../reports/admin-reports.js";
 import { buildActiveApplicationsDigest, buildClosedApplicationsHistory } from "../reports/applications-report.js";
-import { buildOpenRolesReport } from "../reports/open-roles-report.js";
+import { buildOpenRolesReport, type OpenRolesReportMode } from "../reports/open-roles-report.js";
 import { scanTargets } from "../scraper/scanner.js";
 import { isIsoDate, todayIsoDateInTimezone } from "../time.js";
 import { CHECK_TYPES, CLOSED_SUB_STATUSES, type CheckType, type ClosedSubStatus, type KeywordKind } from "../types.js";
@@ -86,9 +86,10 @@ export class InteractionHandler {
 
   private async handleRunCommand(interaction: ChatInputCommandInteraction): Promise<void> {
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+    const mode = parseOpenRolesReportMode(interaction.options.getString("mode") ?? "focused");
     const summary = await scanTargets(this.repository);
-    await sendMessagesToConfiguredChannel(this.client, buildOpenRolesReport(summary, this.repository));
-    await interaction.editReply("Open roles scan finished and the report was posted to the configured channel.");
+    await sendMessagesToConfiguredChannel(this.client, buildOpenRolesReport(summary, this.repository, mode));
+    await interaction.editReply(`Open roles scan finished and the ${mode} report was posted to the configured channel.`);
   }
 
   private async handleTargetsCommand(interaction: ChatInputCommandInteraction): Promise<void> {
@@ -412,6 +413,15 @@ function parseClosedSubStatus(value: string | undefined): ClosedSubStatus {
 function parseKeywordKind(value: string | undefined): KeywordKind {
   if (value === "include" || value === "exclude") return value;
   throw new Error(`Invalid keyword kind ${value}`);
+}
+
+function parseOpenRolesReportMode(value: string): OpenRolesReportMode {
+  if (value === "lower") return "low";
+  if (value === "senior") return "high";
+  if (value === "focused" || value === "all" || value === "low" || value === "mid" || value === "high") {
+    return value;
+  }
+  throw new Error(`Invalid report mode ${value}`);
 }
 
 function validateTargetInput(checkType: CheckType, boardSlug: string | null, careersUrl: string | null): string | null {

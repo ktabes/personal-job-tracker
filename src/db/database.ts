@@ -96,7 +96,28 @@ function seedKeywords(database: Database.Database): void {
     "analytics",
     "machine learning engineer",
     "ml engineer",
-    "data infrastructure"
+    "data infrastructure",
+    "analyst",
+    "product analyst",
+    "business analyst",
+    "operations analyst",
+    "strategy analyst",
+    "risk analyst",
+    "research analyst",
+    "growth analyst",
+    "financial analyst",
+    "reporting analyst",
+    "insights analyst",
+    "customer insights",
+    "data operations",
+    "data quality",
+    "business operations",
+    "strategy & operations",
+    "strategy and operations",
+    "growth associate",
+    "operations associate",
+    "research associate",
+    "data associate"
   ];
   const exclude = ["data center", "data entry", "facilities", "sales", "recruiter"];
 
