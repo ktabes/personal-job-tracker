@@ -63,7 +63,7 @@ The service also registers slash commands on startup, so `npm run commands:regis
 - `/run mode:mid` - post only mid-level roles.
 - `/run mode:high` - post only high-level/senior roles.
 - `/run mode:all` - post every matching role, including senior/leadership roles.
-- `/run category:<category>` - scan only one category, such as `crypto-data`, `crypto-markets`, or `data-platforms`.
+- `/run category:<category>` - scan only one category, such as `crypto-data`, `crypto-markets`, `data-platforms`, or `melbourne-data`.
 - `/applications` - show active applications with Update and Close controls.
 - `/application add` - manually track an application from a role found outside the scan.
 - `/history limit:<N>` - show recent closed applications.
@@ -86,6 +86,7 @@ Examples:
 /targets add name:"Example Recruitee" check_type:ats_recruitee board_slug:"exampleco" careers_url:"https://exampleco.recruitee.com/"
 /targets add name:"Example SmartRecruiters" check_type:ats_smartrecruiters board_slug:"ExampleCo" careers_url:"https://jobs.smartrecruiters.com/ExampleCo"
 /targets add name:"Example Personio" check_type:ats_personio board_slug:"exampleco" careers_url:"https://exampleco.jobs.personio.de/xml?language=en"
+/targets add name:"Melbourne Example" check_type:ats_lever board_slug:"exampleco" careers_url:"https://jobs.lever.co/exampleco" category:"melbourne-data" location_filter:"melbourne, victoria, vic, remote australia"
 /targets add name:"Manual Flow" check_type:manual careers_url:"mailto:careers@example.com"
 ```
 
@@ -99,6 +100,8 @@ How to find common ATS slugs:
 - SmartRecruiters: look for `jobs.smartrecruiters.com/{companyIdentifier}`.
 - Personio: look for `{slug}.jobs.personio.de/xml`.
 
+Use `location_filter` when a target should only show matching roles in certain locations. It is a comma-separated, case-insensitive substring filter applied to the parsed job location after title keyword matching. A Melbourne-focused target can use `melbourne, victoria, vic, remote australia`.
+
 Use `manual` for Notion pages, email-only flows, GitHub PR application flows, Twitter-only posts, or anything that should not be scraped. Use `html` only when the page exposes JSON-LD `JobPosting` data; otherwise the bot marks the check as failed rather than guessing.
 
 ## Importing the Crypto/Data Target Seed
@@ -109,6 +112,7 @@ This repo includes seed files from the 2026-06-16 crypto/data target inventory:
 data/targets/crypto-data-api-verified-2026-06-16.json
 data/targets/crypto-data-manual-2026-06-16.json
 data/targets/expanded-watchlist-2026-06-17.json
+data/targets/melbourne-data-2026-06-17.json
 ```
 
 The API seed contains the 57 API-verified Greenhouse, Ashby, and Lever rows. Aave is included as `ats_lever`; the fetcher detects `jobs.eu.lever.co` and uses Lever's EU API host for that target.
@@ -116,6 +120,8 @@ The API seed contains the 57 API-verified Greenhouse, Ashby, and Lever rows. Aav
 The manual seed contains the 33 manual/API-failed targets. These are imported as `manual` so the bot reports them as manual-only checks instead of pretending they can be auto-scraped.
 
 The expanded watchlist adds 36 curated targets using Workable, Recruitee, SmartRecruiters, and Personio. It intentionally avoids very broad/noisy boards by default. If you want those, add them manually with a category and use `/run category:<category>`.
+
+The Melbourne watchlist adds API-verified Melbourne/Victoria-focused targets using a `location_filter`, so broad boards only report jobs whose parsed location lines up with Melbourne, Victoria, VIC, or remote-Australia wording. Use `/run category:melbourne-data` to run that lane on demand.
 
 Import the seed into the configured SQLite database:
 

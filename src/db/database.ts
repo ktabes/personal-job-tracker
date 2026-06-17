@@ -34,6 +34,7 @@ function initSchema(database: Database.Database): void {
       board_slug TEXT,
       careers_url TEXT,
       category TEXT,
+      location_filter TEXT,
       last_check_status TEXT CHECK (last_check_status IN ('ok', 'failed', 'manual')),
       last_checked_at TEXT,
       active INTEGER DEFAULT 1 CHECK (active IN (0, 1))
@@ -121,7 +122,14 @@ function initSchema(database: Database.Database): void {
 
     CREATE INDEX IF NOT EXISTS idx_applied_roles_role ON applied_roles(target_id, role_key);
   `);
+  ensureTargetsLocationFilterColumn(database);
   migrateTargetsCheckTypeConstraint(database);
+}
+
+function ensureTargetsLocationFilterColumn(database: Database.Database): void {
+  const columns = database.prepare("PRAGMA table_info(targets)").all() as Array<{ name: string }>;
+  if (columns.some((column) => column.name === "location_filter")) return;
+  database.exec("ALTER TABLE targets ADD COLUMN location_filter TEXT");
 }
 
 function migrateTargetsCheckTypeConstraint(database: Database.Database): void {
@@ -142,6 +150,7 @@ function migrateTargetsCheckTypeConstraint(database: Database.Database): void {
         board_slug TEXT,
         careers_url TEXT,
         category TEXT,
+        location_filter TEXT,
         last_check_status TEXT CHECK (last_check_status IN ('ok', 'failed', 'manual')),
         last_checked_at TEXT,
         active INTEGER DEFAULT 1 CHECK (active IN (0, 1))
@@ -154,6 +163,7 @@ function migrateTargetsCheckTypeConstraint(database: Database.Database): void {
         board_slug,
         careers_url,
         category,
+        location_filter,
         last_check_status,
         last_checked_at,
         active
@@ -165,6 +175,7 @@ function migrateTargetsCheckTypeConstraint(database: Database.Database): void {
         board_slug,
         careers_url,
         category,
+        location_filter,
         last_check_status,
         last_checked_at,
         active

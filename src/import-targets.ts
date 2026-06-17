@@ -10,6 +10,7 @@ interface TargetSeed {
   board_slug: string | null;
   careers_url: string | null;
   category: string | null;
+  location_filter: string | null;
 }
 
 const defaultSeedPath = path.join(process.cwd(), "data", "targets", "crypto-data-api-verified-2026-06-16.json");
@@ -33,7 +34,8 @@ for (const seed of seeds) {
     checkType: seed.check_type,
     boardSlug: seed.board_slug,
     careersUrl: seed.careers_url,
-    category: seed.category
+    category: seed.category,
+    locationFilter: seed.location_filter
   });
   existingKeys.add(key);
   imported += 1;
@@ -62,6 +64,7 @@ function validateSeed(item: unknown, index: number): TargetSeed {
   const boardSlug = optionalString(record.board_slug);
   const careersUrl = optionalString(record.careers_url);
   const category = optionalString(record.category);
+  const locationFilter = optionalString(record.location_filter);
 
   if (
     [
@@ -88,7 +91,8 @@ function validateSeed(item: unknown, index: number): TargetSeed {
     check_type: checkType,
     board_slug: boardSlug,
     careers_url: careersUrl,
-    category
+    category,
+    location_filter: locationFilter
   };
 }
 

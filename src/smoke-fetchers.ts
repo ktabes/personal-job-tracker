@@ -17,6 +17,7 @@ const examples: TargetRow[] = [
     board_slug: "airbnb",
     careers_url: "https://careers.airbnb.com/",
     category: "smoke",
+    location_filter: null,
     last_check_status: null,
     last_checked_at: null,
     active: 1
@@ -28,6 +29,7 @@ const examples: TargetRow[] = [
     board_slug: "opensea",
     careers_url: "https://opensea.io/careers",
     category: "smoke",
+    location_filter: null,
     last_check_status: null,
     last_checked_at: null,
     active: 1
@@ -39,6 +41,7 @@ const examples: TargetRow[] = [
     board_slug: "spotify",
     careers_url: "https://www.lifeatspotify.com/jobs",
     category: "smoke",
+    location_filter: null,
     last_check_status: null,
     last_checked_at: null,
     active: 1
@@ -50,6 +53,7 @@ const examples: TargetRow[] = [
     board_slug: "aavelabs",
     careers_url: "https://jobs.eu.lever.co/aavelabs",
     category: "smoke",
+    location_filter: null,
     last_check_status: null,
     last_checked_at: null,
     active: 1
@@ -61,6 +65,7 @@ const examples: TargetRow[] = [
     board_slug: "walletconnect",
     careers_url: "https://apply.workable.com/walletconnect/",
     category: "smoke",
+    location_filter: null,
     last_check_status: null,
     last_checked_at: null,
     active: 1
@@ -72,6 +77,7 @@ const examples: TargetRow[] = [
     board_slug: "webbtraders",
     careers_url: "https://webbtraders.recruitee.com/",
     category: "smoke",
+    location_filter: null,
     last_check_status: null,
     last_checked_at: null,
     active: 1
@@ -83,6 +89,7 @@ const examples: TargetRow[] = [
     board_slug: "InvictusCapital",
     careers_url: "https://jobs.smartrecruiters.com/InvictusCapital",
     category: "smoke",
+    location_filter: null,
     last_check_status: null,
     last_checked_at: null,
     active: 1
@@ -94,6 +101,7 @@ const examples: TargetRow[] = [
     board_slug: "personio",
     careers_url: "https://personio.jobs.personio.de/xml?language=en",
     category: "smoke",
+    location_filter: null,
     last_check_status: null,
     last_checked_at: null,
     active: 1

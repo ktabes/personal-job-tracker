@@ -19,7 +19,9 @@ export async function fetchTargetRoles(target: TargetRow, matcher: KeywordMatche
 
   try {
     const roles = await fetchRolesForTarget(target);
-    const matchingRoles = roles.filter((role) => titleMatches(role.title, matcher)).map((role) => toNewOpenRole(target, role));
+    const matchingRoles = roles
+      .filter((role) => titleMatches(role.title, matcher) && locationMatchesTarget(role, target))
+      .map((role) => toNewOpenRole(target, role));
     return { target, status: "ok", matchingRoles };
   } catch (error) {
     return {
@@ -215,6 +217,20 @@ function toNewOpenRole(target: TargetRow, role: ParsedRole): NewOpenRole {
     location: role.location,
     apply_url: role.apply_url
   };
+}
+
+function locationMatchesTarget(role: ParsedRole, target: TargetRow): boolean {
+  const terms = parseLocationFilter(target.location_filter);
+  if (terms.length === 0) return true;
+  const location = role.location?.toLowerCase() ?? "";
+  return terms.some((term) => location.includes(term));
+}
+
+function parseLocationFilter(value: string | null): string[] {
+  return (value ?? "")
+    .split(",")
+    .map((term) => term.trim().toLowerCase())
+    .filter((term) => term.length > 0);
 }
 
 async function fetchJson(url: string): Promise<unknown> {

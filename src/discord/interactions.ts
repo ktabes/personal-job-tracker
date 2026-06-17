@@ -154,6 +154,7 @@ export class InteractionHandler {
       const boardSlug = emptyToNull(interaction.options.getString("board_slug"));
       const careersUrl = emptyToNull(interaction.options.getString("careers_url"));
       const category = emptyToNull(interaction.options.getString("category"));
+      const locationFilter = emptyToNull(interaction.options.getString("location_filter"));
 
       if (!name) {
         await interaction.reply({ content: "Target name cannot be blank.", flags: MessageFlags.Ephemeral });
@@ -166,7 +167,7 @@ export class InteractionHandler {
         return;
       }
 
-      const target = this.repository.addTarget({ name, checkType, boardSlug, careersUrl, category });
+      const target = this.repository.addTarget({ name, checkType, boardSlug, careersUrl, category, locationFilter });
       await interaction.reply({
         content: `Added target #${target.id}: ${target.name} (${target.check_type}).`,
         flags: MessageFlags.Ephemeral

@@ -45,10 +45,11 @@ export function buildTargetsReport(targets: TargetReportRow[]): MessageCreateOpt
   for (const target of targets) {
     const active = target.active === 1 ? "active" : "disabled";
     const category = target.category ? `; category: ${target.category}` : "";
+    const locationFilter = target.location_filter ? `; location: ${target.location_filter}` : "";
     const slug = target.board_slug ? `; slug: ${target.board_slug}` : "";
     const link = target.careers_url ? `; ${target.careers_url}` : "";
     const outreach = "outreach_status" in target && target.outreach_status ? `; outreach: ${target.outreach_status}` : "";
-    const line = `#${target.id} **${target.name}** - ${target.check_type}; ${active}; status: ${statusLabel(target.last_check_status)}${category}${outreach}${slug}${link}`;
+    const line = `#${target.id} **${target.name}** - ${target.check_type}; ${active}; status: ${statusLabel(target.last_check_status)}${category}${locationFilter}${outreach}${slug}${link}`;
     const nextContent = [...lines, line].join("\n");
     if (lines.length > 1 && nextContent.length > MAX_TARGETS_MESSAGE_LENGTH) {
       pages.push({ content: lines.join("\n") });

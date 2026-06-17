@@ -71,6 +71,12 @@ export const commandDefinitions: RESTPostAPIChatInputApplicationCommandsJSONBody
         .addStringOption((option) =>
           option.setName("category").setDescription("Optional freeform grouping.").setRequired(false)
         )
+        .addStringOption((option) =>
+          option
+            .setName("location_filter")
+            .setDescription("Optional comma-separated location terms, such as Melbourne, Victoria.")
+            .setRequired(false)
+        )
     )
     .addSubcommand((subcommand) =>
       subcommand

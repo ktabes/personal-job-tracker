@@ -33,6 +33,7 @@ export interface TargetRow {
   board_slug: string | null;
   careers_url: string | null;
   category: string | null;
+  location_filter: string | null;
   last_check_status: CheckStatus | null;
   last_checked_at: string | null;
   active: number;

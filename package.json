@@ -14,7 +14,8 @@
     "targets:import:crypto-data": "tsx src/import-targets.ts data/targets/crypto-data-api-verified-2026-06-16.json",
     "targets:import:manual": "tsx src/import-targets.ts data/targets/crypto-data-manual-2026-06-16.json",
     "targets:import:expanded": "tsx src/import-targets.ts data/targets/expanded-watchlist-2026-06-17.json",
-    "targets:import:all": "npm run targets:import:crypto-data && npm run targets:import:manual && npm run targets:import:expanded",
+    "targets:import:melbourne": "tsx src/import-targets.ts data/targets/melbourne-data-2026-06-17.json",
+    "targets:import:all": "npm run targets:import:crypto-data && npm run targets:import:manual && npm run targets:import:expanded && npm run targets:import:melbourne",
     "smoke:fetchers": "tsx src/smoke-fetchers.ts"
   },
   "engines": {

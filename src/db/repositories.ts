@@ -25,6 +25,7 @@ interface AddTargetInput {
   boardSlug: string | null;
   careersUrl: string | null;
   category: string | null;
+  locationFilter: string | null;
 }
 
 interface UpdateApplicationInput {
@@ -94,8 +95,8 @@ export class JobTrackerRepository {
   addTarget(input: AddTargetInput): TargetRow {
     const info = this.db
       .prepare(
-        `INSERT INTO targets (name, check_type, board_slug, careers_url, category, last_check_status, active)
-         VALUES (?, ?, ?, ?, ?, ?, 1)`
+        `INSERT INTO targets (name, check_type, board_slug, careers_url, category, location_filter, last_check_status, active)
+         VALUES (?, ?, ?, ?, ?, ?, ?, 1)`
       )
       .run(
         input.name,
@@ -103,6 +104,7 @@ export class JobTrackerRepository {
         input.boardSlug,
         input.careersUrl,
         input.category,
+        input.locationFilter,
         input.checkType === "manual" ? "manual" : null
       );
 

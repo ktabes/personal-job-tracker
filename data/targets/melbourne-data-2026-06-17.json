@@ -1,0 +1,114 @@
+[
+  {
+    "name": "Netwealth",
+    "check_type": "ats_ashby",
+    "board_slug": "netwealth",
+    "careers_url": "https://jobs.ashbyhq.com/netwealth",
+    "category": "melbourne-data",
+    "location_filter": "melbourne, victoria, vic, remote australia, australia remote"
+  },
+  {
+    "name": "Capital.com",
+    "check_type": "ats_lever",
+    "board_slug": "capital",
+    "careers_url": "https://jobs.lever.co/capital",
+    "category": "melbourne-data",
+    "location_filter": "melbourne, victoria, vic, remote australia, australia remote"
+  },
+  {
+    "name": "GXE",
+    "check_type": "ats_workable",
+    "board_slug": "gxe",
+    "careers_url": "https://apply.workable.com/gxe/",
+    "category": "melbourne-data",
+    "location_filter": "melbourne, victoria, vic, remote australia, australia remote"
+  },
+  {
+    "name": "SEEK",
+    "check_type": "ats_smartrecruiters",
+    "board_slug": "SEEK",
+    "careers_url": "https://jobs.smartrecruiters.com/SEEK",
+    "category": "melbourne-data",
+    "location_filter": "melbourne, victoria, vic, cremorne, remote australia, australia remote"
+  },
+  {
+    "name": "carsales",
+    "check_type": "ats_smartrecruiters",
+    "board_slug": "carsales",
+    "careers_url": "https://jobs.smartrecruiters.com/carsales",
+    "category": "melbourne-data",
+    "location_filter": "melbourne, victoria, vic, remote australia, australia remote"
+  },
+  {
+    "name": "Culture Amp",
+    "check_type": "ats_greenhouse",
+    "board_slug": "cultureamp",
+    "careers_url": "https://job-boards.greenhouse.io/cultureamp",
+    "category": "melbourne-data",
+    "location_filter": "melbourne, victoria, vic, remote australia, australia remote"
+  },
+  {
+    "name": "Prospa",
+    "check_type": "ats_greenhouse",
+    "board_slug": "prospa",
+    "careers_url": "https://job-boards.greenhouse.io/prospa",
+    "category": "melbourne-data",
+    "location_filter": "melbourne, victoria, vic, remote australia, australia remote"
+  },
+  {
+    "name": "Zeller",
+    "check_type": "ats_lever",
+    "board_slug": "Zeller",
+    "careers_url": "https://jobs.lever.co/Zeller",
+    "category": "melbourne-data",
+    "location_filter": "melbourne, victoria, vic, remote australia, australia remote"
+  },
+  {
+    "name": "Envato",
+    "check_type": "ats_lever",
+    "board_slug": "envato-2",
+    "careers_url": "https://jobs.lever.co/envato-2",
+    "category": "melbourne-data",
+    "location_filter": "melbourne, victoria, vic, remote australia, australia remote"
+  },
+  {
+    "name": "CoinJar",
+    "check_type": "ats_smartrecruiters",
+    "board_slug": "CoinJar",
+    "careers_url": "https://jobs.smartrecruiters.com/CoinJar",
+    "category": "melbourne-data",
+    "location_filter": "melbourne, victoria, vic, remote australia, australia remote"
+  },
+  {
+    "name": "Dovetail",
+    "check_type": "ats_ashby",
+    "board_slug": "dovetail",
+    "careers_url": "https://jobs.ashbyhq.com/dovetail",
+    "category": "melbourne-data",
+    "location_filter": "melbourne, victoria, vic, remote australia, australia remote"
+  },
+  {
+    "name": "Eucalyptus",
+    "check_type": "ats_greenhouse",
+    "board_slug": "eucalyptus",
+    "careers_url": "https://job-boards.greenhouse.io/eucalyptus",
+    "category": "melbourne-data",
+    "location_filter": "melbourne, victoria, vic, remote australia, australia remote"
+  },
+  {
+    "name": "ROLLER",
+    "check_type": "ats_greenhouse",
+    "board_slug": "roller",
+    "careers_url": "https://job-boards.greenhouse.io/roller",
+    "category": "melbourne-data",
+    "location_filter": "melbourne, victoria, vic, remote australia, australia remote"
+  },
+  {
+    "name": "Airwallex",
+    "check_type": "ats_ashby",
+    "board_slug": "airwallex",
+    "careers_url": "https://jobs.ashbyhq.com/airwallex",
+    "category": "melbourne-data",
+    "location_filter": "melbourne, victoria, vic, remote australia, australia remote"
+  }
+]
