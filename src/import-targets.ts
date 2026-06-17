@@ -63,8 +63,24 @@ function validateSeed(item: unknown, index: number): TargetSeed {
   const careersUrl = optionalString(record.careers_url);
   const category = optionalString(record.category);
 
-  if (["ats_greenhouse", "ats_ashby", "ats_lever"].includes(checkType) && !boardSlug) {
+  if (
+    [
+      "ats_greenhouse",
+      "ats_ashby",
+      "ats_lever",
+      "ats_workable",
+      "ats_recruitee",
+      "ats_smartrecruiters"
+    ].includes(checkType) &&
+    !boardSlug
+  ) {
     throw new Error(`Seed row ${index + 1} requires board_slug`);
+  }
+  if (checkType === "ats_personio" && !boardSlug && !careersUrl) {
+    throw new Error(`Seed row ${index + 1} requires board_slug or careers_url`);
+  }
+  if ((checkType === "html" || checkType === "manual") && !careersUrl) {
+    throw new Error(`Seed row ${index + 1} requires careers_url`);
   }
 
   return {

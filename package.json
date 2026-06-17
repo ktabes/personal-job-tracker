@@ -13,7 +13,8 @@
     "targets:import": "tsx src/import-targets.ts",
     "targets:import:crypto-data": "tsx src/import-targets.ts data/targets/crypto-data-api-verified-2026-06-16.json",
     "targets:import:manual": "tsx src/import-targets.ts data/targets/crypto-data-manual-2026-06-16.json",
-    "targets:import:all": "npm run targets:import:crypto-data && npm run targets:import:manual",
+    "targets:import:expanded": "tsx src/import-targets.ts data/targets/expanded-watchlist-2026-06-17.json",
+    "targets:import:all": "npm run targets:import:crypto-data && npm run targets:import:manual && npm run targets:import:expanded",
     "smoke:fetchers": "tsx src/smoke-fetchers.ts"
   },
   "engines": {
@@ -23,6 +24,7 @@
     "better-sqlite3": "^12.11.1",
     "discord.js": "^14.26.4",
     "dotenv": "^16.6.1",
+    "fast-xml-parser": "^5.9.2",
     "node-cron": "^4.2.1"
   },
   "devDependencies": {

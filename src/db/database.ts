@@ -2,8 +2,10 @@ import Database from "better-sqlite3";
 import fs from "node:fs";
 import path from "node:path";
 import { config } from "../config.js";
+import { CHECK_TYPES } from "../types.js";
 
 let db: Database.Database | null = null;
+const CHECK_TYPE_VALUES_SQL = CHECK_TYPES.map((type) => `'${type}'`).join(", ");
 
 export function getDb(): Database.Database {
   if (db) return db;
@@ -28,7 +30,7 @@ function initSchema(database: Database.Database): void {
     CREATE TABLE IF NOT EXISTS targets (
       id INTEGER PRIMARY KEY,
       name TEXT NOT NULL,
-      check_type TEXT NOT NULL CHECK (check_type IN ('ats_greenhouse', 'ats_ashby', 'ats_lever', 'html', 'manual')),
+      check_type TEXT NOT NULL CHECK (check_type IN (${CHECK_TYPE_VALUES_SQL})),
       board_slug TEXT,
       careers_url TEXT,
       category TEXT,
@@ -39,6 +41,16 @@ function initSchema(database: Database.Database): void {
 
     CREATE INDEX IF NOT EXISTS idx_targets_active ON targets(active);
     CREATE INDEX IF NOT EXISTS idx_targets_category ON targets(category);
+
+    CREATE TABLE IF NOT EXISTS target_outreach (
+      target_id INTEGER PRIMARY KEY REFERENCES targets(id) ON DELETE CASCADE,
+      status TEXT NOT NULL DEFAULT 'not_started' CHECK (status IN ('not_started', 'researching', 'contacted', 'applied', 'paused')),
+      contact_url TEXT,
+      notes TEXT,
+      updated_at TEXT
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_target_outreach_status ON target_outreach(status);
 
     CREATE TABLE IF NOT EXISTS open_roles (
       id INTEGER PRIMARY KEY,
@@ -109,6 +121,63 @@ function initSchema(database: Database.Database): void {
 
     CREATE INDEX IF NOT EXISTS idx_applied_roles_role ON applied_roles(target_id, role_key);
   `);
+  migrateTargetsCheckTypeConstraint(database);
+}
+
+function migrateTargetsCheckTypeConstraint(database: Database.Database): void {
+  const row = database
+    .prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'targets'")
+    .get() as { sql?: string } | undefined;
+  const sql = row?.sql ?? "";
+  const hasAllCheckTypes = CHECK_TYPES.every((type) => sql.includes(`'${type}'`));
+  if (hasAllCheckTypes) return;
+
+  database.pragma("foreign_keys = OFF");
+  try {
+    database.exec(`
+      CREATE TABLE targets_new (
+        id INTEGER PRIMARY KEY,
+        name TEXT NOT NULL,
+        check_type TEXT NOT NULL CHECK (check_type IN (${CHECK_TYPE_VALUES_SQL})),
+        board_slug TEXT,
+        careers_url TEXT,
+        category TEXT,
+        last_check_status TEXT CHECK (last_check_status IN ('ok', 'failed', 'manual')),
+        last_checked_at TEXT,
+        active INTEGER DEFAULT 1 CHECK (active IN (0, 1))
+      );
+
+      INSERT INTO targets_new (
+        id,
+        name,
+        check_type,
+        board_slug,
+        careers_url,
+        category,
+        last_check_status,
+        last_checked_at,
+        active
+      )
+      SELECT
+        id,
+        name,
+        check_type,
+        board_slug,
+        careers_url,
+        category,
+        last_check_status,
+        last_checked_at,
+        active
+      FROM targets;
+
+      DROP TABLE targets;
+      ALTER TABLE targets_new RENAME TO targets;
+      CREATE INDEX IF NOT EXISTS idx_targets_active ON targets(active);
+      CREATE INDEX IF NOT EXISTS idx_targets_category ON targets(category);
+    `);
+  } finally {
+    database.pragma("foreign_keys = ON");
+  }
 }
 
 function seedKeywords(database: Database.Database): void {

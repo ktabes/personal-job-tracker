@@ -1,4 +1,14 @@
-export const CHECK_TYPES = ["ats_greenhouse", "ats_ashby", "ats_lever", "html", "manual"] as const;
+export const CHECK_TYPES = [
+  "ats_greenhouse",
+  "ats_ashby",
+  "ats_lever",
+  "ats_workable",
+  "ats_recruitee",
+  "ats_smartrecruiters",
+  "ats_personio",
+  "html",
+  "manual"
+] as const;
 export type CheckType = (typeof CHECK_TYPES)[number];
 
 export const CHECK_STATUSES = ["ok", "failed", "manual"] as const;
@@ -13,6 +23,9 @@ export type ApplicationStatus = (typeof APPLICATION_STATUSES)[number];
 export const CLOSED_SUB_STATUSES = ["rejected", "offer", "withdrawn", "ghosted"] as const;
 export type ClosedSubStatus = (typeof CLOSED_SUB_STATUSES)[number];
 
+export const OUTREACH_STATUSES = ["not_started", "researching", "contacted", "applied", "paused"] as const;
+export type OutreachStatus = (typeof OUTREACH_STATUSES)[number];
+
 export interface TargetRow {
   id: number;
   name: string;
@@ -23,6 +36,21 @@ export interface TargetRow {
   last_check_status: CheckStatus | null;
   last_checked_at: string | null;
   active: number;
+}
+
+export interface TargetWithOutreach extends TargetRow {
+  outreach_status: OutreachStatus | null;
+  outreach_contact_url: string | null;
+  outreach_notes: string | null;
+  outreach_updated_at: string | null;
+}
+
+export interface TargetOutreachRow {
+  target_id: number;
+  status: OutreachStatus;
+  contact_url: string | null;
+  notes: string | null;
+  updated_at: string | null;
 }
 
 export interface KeywordRow {

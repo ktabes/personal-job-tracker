@@ -53,6 +53,50 @@ const examples: TargetRow[] = [
     last_check_status: null,
     last_checked_at: null,
     active: 1
+  },
+  {
+    id: 5,
+    name: "Example Workable",
+    check_type: "ats_workable",
+    board_slug: "walletconnect",
+    careers_url: "https://apply.workable.com/walletconnect/",
+    category: "smoke",
+    last_check_status: null,
+    last_checked_at: null,
+    active: 1
+  },
+  {
+    id: 6,
+    name: "Example Recruitee",
+    check_type: "ats_recruitee",
+    board_slug: "webbtraders",
+    careers_url: "https://webbtraders.recruitee.com/",
+    category: "smoke",
+    last_check_status: null,
+    last_checked_at: null,
+    active: 1
+  },
+  {
+    id: 7,
+    name: "Example SmartRecruiters",
+    check_type: "ats_smartrecruiters",
+    board_slug: "InvictusCapital",
+    careers_url: "https://jobs.smartrecruiters.com/InvictusCapital",
+    category: "smoke",
+    last_check_status: null,
+    last_checked_at: null,
+    active: 1
+  },
+  {
+    id: 8,
+    name: "Example Personio",
+    check_type: "ats_personio",
+    board_slug: "personio",
+    careers_url: "https://personio.jobs.personio.de/xml?language=en",
+    category: "smoke",
+    last_check_status: null,
+    last_checked_at: null,
+    active: 1
   }
 ];
 

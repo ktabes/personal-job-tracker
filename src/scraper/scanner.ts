@@ -7,12 +7,16 @@ import { fetchTargetRoles } from "./fetchers.js";
 
 export interface ScanSummary {
   checkedAt: string;
+  category: string | null;
   outcomes: TargetScanOutcome[];
 }
 
-export async function scanTargets(repository: JobTrackerRepository): Promise<ScanSummary> {
+export async function scanTargets(
+  repository: JobTrackerRepository,
+  category: string | null = null
+): Promise<ScanSummary> {
   const checkedAt = nowIso();
-  const targets = repository.listTargets(false);
+  const targets = repository.listTargets(false, category);
   const matcher = buildKeywordMatcher(repository.listKeywords());
   const outcomes = await Promise.all(targets.map((target) => fetchTargetRoles(target, matcher)));
 
@@ -24,5 +28,5 @@ export async function scanTargets(repository: JobTrackerRepository): Promise<Sca
     }
   }
 
-  return { checkedAt, outcomes };
+  return { checkedAt, category, outcomes };
 }

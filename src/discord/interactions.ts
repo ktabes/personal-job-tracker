@@ -27,7 +27,15 @@ import { buildActiveApplicationsDigest, buildClosedApplicationsHistory } from ".
 import { buildOpenRolesReport, type OpenRolesReportMode } from "../reports/open-roles-report.js";
 import { scanTargets } from "../scraper/scanner.js";
 import { currentReportWindowKey, isIsoDate, todayIsoDateInTimezone } from "../time.js";
-import { CHECK_TYPES, CLOSED_SUB_STATUSES, type CheckType, type ClosedSubStatus, type KeywordKind } from "../types.js";
+import {
+  CHECK_TYPES,
+  CLOSED_SUB_STATUSES,
+  OUTREACH_STATUSES,
+  type CheckType,
+  type ClosedSubStatus,
+  type KeywordKind,
+  type OutreachStatus
+} from "../types.js";
 import { sendMessagesToConfiguredChannel } from "./send.js";
 
 export class InteractionHandler {
@@ -88,19 +96,22 @@ export class InteractionHandler {
   private async handleRunCommand(interaction: ChatInputCommandInteraction): Promise<void> {
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
     const mode = parseOpenRolesReportMode(interaction.options.getString("mode") ?? "focused");
-    const summary = await scanTargets(this.repository);
+    const category = emptyToNull(interaction.options.getString("category"));
+    const summary = await scanTargets(this.repository, category);
     const reportWindow = currentReportWindowKey(config.reportTimezone);
-    const reportableRoles = this.repository.listReportableOpenRolesWithTargets(reportWindow);
+    const reportableRoles = this.repository.listReportableOpenRolesWithTargets(reportWindow, category);
     const report = buildOpenRolesReport(summary, reportableRoles, mode);
     await sendMessagesToConfiguredChannel(this.client, report.messages);
     this.repository.markRolesReported(report.reportedRoles, reportWindow);
-    await interaction.editReply(`Open roles scan finished and the ${mode} report was posted to the configured channel.`);
+    const scope = category ? ` for category ${category}` : "";
+    await interaction.editReply(`Open roles scan${scope} finished and the ${mode} report was posted to the configured channel.`);
   }
 
   private async handleTargetsCommand(interaction: ChatInputCommandInteraction): Promise<void> {
     const subcommand = interaction.options.getSubcommand();
     if (subcommand === "list") {
-      await interaction.reply({ ...buildTargetsReport(this.repository.listTargets(true)), flags: MessageFlags.Ephemeral });
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+      await replyWithMessages(interaction, buildTargetsReport(this.repository.listTargetsWithOutreach(true)));
       return;
     }
 
@@ -109,6 +120,19 @@ export class InteractionHandler {
       const disabled = this.repository.disableTarget(id);
       await interaction.reply({
         content: disabled ? `Disabled target #${id}.` : `No target found for #${id}.`,
+        flags: MessageFlags.Ephemeral
+      });
+      return;
+    }
+
+    if (subcommand === "outreach") {
+      const targetId = interaction.options.getInteger("id", true);
+      const status = parseOutreachStatus(interaction.options.getString("status", true));
+      const contactUrl = interaction.options.getString("contact_url");
+      const notes = interaction.options.getString("notes");
+      const outreach = this.repository.updateTargetOutreach({ targetId, status, contactUrl, notes });
+      await interaction.reply({
+        content: `Updated outreach for target #${outreach.target_id}: ${outreach.status}.`,
         flags: MessageFlags.Ephemeral
       });
       return;
@@ -457,6 +481,11 @@ function parseKeywordKind(value: string | undefined): KeywordKind {
   throw new Error(`Invalid keyword kind ${value}`);
 }
 
+function parseOutreachStatus(value: string | undefined): OutreachStatus {
+  if (OUTREACH_STATUSES.includes(value as OutreachStatus)) return value as OutreachStatus;
+  throw new Error(`Invalid outreach status ${value}`);
+}
+
 function parseOpenRolesReportMode(value: string): OpenRolesReportMode {
   if (value === "lower") return "low";
   if (value === "senior") return "high";
@@ -467,8 +496,21 @@ function parseOpenRolesReportMode(value: string): OpenRolesReportMode {
 }
 
 function validateTargetInput(checkType: CheckType, boardSlug: string | null, careersUrl: string | null): string | null {
-  if (["ats_greenhouse", "ats_ashby", "ats_lever"].includes(checkType) && !boardSlug) {
+  if (
+    [
+      "ats_greenhouse",
+      "ats_ashby",
+      "ats_lever",
+      "ats_workable",
+      "ats_recruitee",
+      "ats_smartrecruiters"
+    ].includes(checkType) &&
+    !boardSlug
+  ) {
     return `${checkType} targets require board_slug.`;
+  }
+  if (checkType === "ats_personio" && !boardSlug && !careersUrl) {
+    return "ats_personio targets require board_slug or careers_url.";
   }
   if ((checkType === "html" || checkType === "manual") && !careersUrl) {
     return `${checkType} targets require careers_url.`;

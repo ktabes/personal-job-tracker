@@ -12,8 +12,11 @@ import type {
   NewOpenRole,
   OpenRoleRow,
   OpenRoleWithTarget,
+  OutreachStatus,
+  TargetOutreachRow,
   TargetRow,
-  TargetScanOutcome
+  TargetScanOutcome,
+  TargetWithOutreach
 } from "../types.js";
 
 interface AddTargetInput {
@@ -37,17 +40,42 @@ interface CloseApplicationInput {
   notes?: string | null;
 }
 
+interface UpdateTargetOutreachInput {
+  targetId: number;
+  status: OutreachStatus;
+  contactUrl?: string | null;
+  notes?: string | null;
+}
+
 const ROLE_KEY_SQL =
   "CASE WHEN open_roles.external_id IS NOT NULL AND open_roles.external_id <> '' THEN 'external:' || open_roles.external_id ELSE 'url:' || open_roles.apply_url || ':title:' || open_roles.title END";
 
 export class JobTrackerRepository {
   constructor(private readonly db: Database.Database) {}
 
-  listTargets(includeInactive = false): TargetRow[] {
-    const sql = includeInactive
-      ? "SELECT * FROM targets ORDER BY active DESC, lower(name)"
-      : "SELECT * FROM targets WHERE active = 1 ORDER BY lower(name)";
-    return this.db.prepare(sql).all() as TargetRow[];
+  listTargets(includeInactive = false, category: string | null = null): TargetRow[] {
+    const { where, params } = targetWhereClause(includeInactive, category);
+    return this.db
+      .prepare(`SELECT * FROM targets${where} ORDER BY active DESC, lower(name)`)
+      .all(...params) as TargetRow[];
+  }
+
+  listTargetsWithOutreach(includeInactive = false, category: string | null = null): TargetWithOutreach[] {
+    const { where, params } = targetWhereClause(includeInactive, category);
+    return this.db
+      .prepare(
+        `SELECT
+           targets.*,
+           target_outreach.status AS outreach_status,
+           target_outreach.contact_url AS outreach_contact_url,
+           target_outreach.notes AS outreach_notes,
+           target_outreach.updated_at AS outreach_updated_at
+         FROM targets
+         LEFT JOIN target_outreach ON target_outreach.target_id = targets.id
+         ${where}
+         ORDER BY targets.active DESC, lower(targets.name)`
+      )
+      .all(...params) as TargetWithOutreach[];
   }
 
   addTarget(input: AddTargetInput): TargetRow {
@@ -69,14 +97,50 @@ export class JobTrackerRepository {
   }
 
   disableTarget(id: number): boolean {
-    const info = this.db.prepare("UPDATE targets SET active = 0 WHERE id = ?").run(id);
-    return info.changes > 0;
+    const transaction = this.db.transaction((targetId: number) => {
+      const info = this.db.prepare("UPDATE targets SET active = 0 WHERE id = ?").run(targetId);
+      this.db.prepare("DELETE FROM open_roles WHERE target_id = ?").run(targetId);
+      return info.changes > 0;
+    });
+    return transaction(id);
   }
 
   getTarget(id: number): TargetRow {
     const row = this.db.prepare("SELECT * FROM targets WHERE id = ?").get(id) as TargetRow | undefined;
     if (!row) throw new Error(`Target ${id} not found`);
     return row;
+  }
+
+  getTargetOutreach(targetId: number): TargetOutreachRow | null {
+    return (
+      (this.db
+        .prepare("SELECT * FROM target_outreach WHERE target_id = ?")
+        .get(targetId) as TargetOutreachRow | undefined) ?? null
+    );
+  }
+
+  updateTargetOutreach(input: UpdateTargetOutreachInput): TargetOutreachRow {
+    this.getTarget(input.targetId);
+    const current = this.getTargetOutreach(input.targetId);
+    const contactUrl = input.contactUrl === undefined ? current?.contact_url ?? null : emptyToNull(input.contactUrl);
+    const notes = input.notes === undefined ? current?.notes ?? null : emptyToNull(input.notes);
+    const updatedAt = nowIso();
+
+    this.db
+      .prepare(
+        `INSERT INTO target_outreach (target_id, status, contact_url, notes, updated_at)
+         VALUES (?, ?, ?, ?, ?)
+         ON CONFLICT(target_id) DO UPDATE SET
+           status = excluded.status,
+           contact_url = excluded.contact_url,
+           notes = excluded.notes,
+           updated_at = excluded.updated_at`
+      )
+      .run(input.targetId, input.status, contactUrl, notes, updatedAt);
+
+    const updated = this.getTargetOutreach(input.targetId);
+    if (!updated) throw new Error(`Outreach row for target ${input.targetId} was not written`);
+    return updated;
   }
 
   listKeywords(): KeywordRow[] {
@@ -106,7 +170,7 @@ export class JobTrackerRepository {
     const updateTarget = this.db.prepare(
       "UPDATE targets SET last_check_status = ?, last_checked_at = ? WHERE id = ?"
     );
-    const deleteRoles = this.db.prepare("DELETE FROM open_roles");
+    const deleteRolesForTarget = this.db.prepare("DELETE FROM open_roles WHERE target_id = ?");
     const insertRole = this.db.prepare(
       `INSERT INTO open_roles (target_id, external_id, title, location, apply_url, first_seen_at, last_seen_at)
        VALUES (?, ?, ?, ?, ?, ?, ?)`
@@ -117,9 +181,8 @@ export class JobTrackerRepository {
         updateTarget.run(outcome.status, checkedAt, outcome.target.id);
       }
 
-      deleteRoles.run();
-
       for (const outcome of items) {
+        deleteRolesForTarget.run(outcome.target.id);
         if (outcome.status !== "ok") continue;
         for (const role of outcome.matchingRoles) {
           const firstSeenAt = firstSeenByKey.get(roleIdentity(role)) ?? checkedAt;
@@ -139,24 +202,28 @@ export class JobTrackerRepository {
     transaction(outcomes);
   }
 
-  listOpenRolesWithTargets(): OpenRoleWithTarget[] {
+  listOpenRolesWithTargets(category: string | null = null): OpenRoleWithTarget[] {
+    const { categoryFilter, params } = openRoleCategoryFilter(category);
     return this.db
       .prepare(
         `SELECT open_roles.*, targets.name AS company, targets.last_check_status AS target_check_status
          FROM open_roles
          JOIN targets ON targets.id = open_roles.target_id
+         WHERE targets.active = 1${categoryFilter}
          ORDER BY lower(targets.name), lower(open_roles.title)`
       )
-      .all() as OpenRoleWithTarget[];
+      .all(...params) as OpenRoleWithTarget[];
   }
 
-  listReportableOpenRolesWithTargets(reportWindow: string): OpenRoleWithTarget[] {
+  listReportableOpenRolesWithTargets(reportWindow: string, category: string | null = null): OpenRoleWithTarget[] {
+    const { categoryFilter, params } = openRoleCategoryFilter(category);
     return this.db
       .prepare(
         `SELECT open_roles.*, targets.name AS company, targets.last_check_status AS target_check_status
          FROM open_roles
          JOIN targets ON targets.id = open_roles.target_id
-         WHERE NOT EXISTS (
+         WHERE targets.active = 1${categoryFilter}
+           AND NOT EXISTS (
            SELECT 1
            FROM role_report_history
            WHERE role_report_history.target_id = open_roles.target_id
@@ -175,10 +242,10 @@ export class JobTrackerRepository {
              WHERE lower(applications.company) = lower(targets.name)
                AND lower(applications.role_title) = lower(open_roles.title)
                AND COALESCE(applications.apply_url, '') = open_roles.apply_url
-           )
+         )
          ORDER BY lower(targets.name), lower(open_roles.title)`
       )
-      .all(reportWindow) as OpenRoleWithTarget[];
+      .all(...params, reportWindow) as OpenRoleWithTarget[];
   }
 
   markRolesReported(roles: OpenRoleWithTarget[], reportWindow: string, reportedAt = nowIso()): void {
@@ -409,6 +476,34 @@ function presentOrCurrent(next: string | null | undefined, current: string | nul
 function emptyToNull(value: string | null | undefined): string | null {
   const trimmed = value?.trim() ?? "";
   return trimmed.length > 0 ? trimmed : null;
+}
+
+function targetWhereClause(includeInactive: boolean, category: string | null): { where: string; params: string[] } {
+  const conditions: string[] = [];
+  const params: string[] = [];
+
+  if (!includeInactive) {
+    conditions.push("active = 1");
+  }
+
+  const normalizedCategory = category?.trim();
+  if (normalizedCategory) {
+    conditions.push("lower(category) = lower(?)");
+    params.push(normalizedCategory);
+  }
+
+  return {
+    where: conditions.length > 0 ? ` WHERE ${conditions.join(" AND ")}` : "",
+    params
+  };
+}
+
+function openRoleCategoryFilter(category: string | null): { categoryFilter: string; params: string[] } {
+  const normalizedCategory = category?.trim();
+  if (!normalizedCategory) {
+    return { categoryFilter: "", params: [] };
+  }
+  return { categoryFilter: " AND lower(targets.category) = lower(?)", params: [normalizedCategory] };
 }
 
 export function statusLabel(status: CheckStatus | null): string {

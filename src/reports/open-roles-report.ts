@@ -139,6 +139,7 @@ function buildStatusMessage(
 
   const lines = [
     `Checked at: ${summary.checkedAt}`,
+    summary.category ? `Category: ${summary.category}` : "Category: all active targets",
     matchCount > 0 ? `Matching roles found: ${matchCount}` : "No matching auto-check roles found.",
     `Low-level: ${bucketCounts.low}`,
     `Mid-level: ${bucketCounts.mid}`,

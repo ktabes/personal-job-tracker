@@ -1,3 +1,4 @@
+import { XMLParser } from "fast-xml-parser";
 import type { KeywordMatcher } from "./keywords.js";
 import { titleMatches } from "./keywords.js";
 import type { NewOpenRole, TargetRow, TargetScanOutcome } from "../types.js";
@@ -38,6 +39,14 @@ async function fetchRolesForTarget(target: TargetRow): Promise<ParsedRole[]> {
       return fetchAshbyRoles(requiredBoardSlug(target));
     case "ats_lever":
       return fetchLeverRoles(requiredBoardSlug(target), target.careers_url);
+    case "ats_workable":
+      return fetchWorkableRoles(requiredBoardSlug(target));
+    case "ats_recruitee":
+      return fetchRecruiteeRoles(requiredBoardSlug(target));
+    case "ats_smartrecruiters":
+      return fetchSmartRecruitersRoles(requiredBoardSlug(target));
+    case "ats_personio":
+      return fetchPersonioRoles(target);
     case "html":
       return fetchHtmlStructuredRoles(requiredCareersUrl(target));
     case "manual":
@@ -97,6 +106,83 @@ async function fetchLeverRoles(boardSlug: string, careersUrl: string | null): Pr
       title: requiredString(record.text, "Lever posting text"),
       location: categories ? optionalString(categories.location) : null,
       apply_url: requiredString(record.hostedUrl, "Lever hostedUrl")
+    };
+  });
+}
+
+async function fetchWorkableRoles(boardSlug: string): Promise<ParsedRole[]> {
+  const url = `https://www.workable.com/api/accounts/${encodeURIComponent(boardSlug)}?details=true`;
+  const json = await fetchJson(url);
+  const jobs = getArrayProperty(json, "jobs", "Workable jobs");
+
+  return jobs.map((job) => {
+    const record = asRecord(job, "Workable job");
+    return {
+      external_id: optionalString(record.shortcode) ?? optionalString(record.id) ?? optionalString(record.url),
+      title: requiredString(record.title, "Workable job title"),
+      location: workableLocation(record),
+      apply_url: firstRequiredString([record.url, record.application_url, record.shortlink], "Workable url/application_url")
+    };
+  });
+}
+
+async function fetchRecruiteeRoles(boardSlug: string): Promise<ParsedRole[]> {
+  const host = recruiteeHost(boardSlug);
+  const url = `https://${host}/api/offers`;
+  const json = await fetchJson(url);
+  const offers = getArrayProperty(json, "offers", "Recruitee offers");
+
+  return offers.map((offer) => {
+    const record = asRecord(offer, "Recruitee offer");
+    return {
+      external_id: optionalString(record.guid) ?? optionalString(record.id) ?? optionalString(record.position),
+      title: requiredString(record.title, "Recruitee offer title"),
+      location: recruiteeLocation(record),
+      apply_url: firstRequiredString([record.careers_url, record.careers_apply_url], "Recruitee careers_url")
+    };
+  });
+}
+
+async function fetchSmartRecruitersRoles(boardSlug: string): Promise<ParsedRole[]> {
+  const roles: ParsedRole[] = [];
+  const limit = 100;
+
+  for (let offset = 0; offset < 1_000; offset += limit) {
+    const url = `https://api.smartrecruiters.com/v1/companies/${encodeURIComponent(boardSlug)}/postings?limit=${limit}&offset=${offset}`;
+    const json = await fetchJson(url);
+    const response = asRecord(json, "SmartRecruiters response");
+    const jobs = getArrayProperty(json, "content", "SmartRecruiters postings");
+    roles.push(...jobs.map((job) => smartRecruitersRole(job, boardSlug)));
+
+    const totalFound = optionalNumber(response.totalFound);
+    if (jobs.length < limit || (totalFound !== null && roles.length >= totalFound)) {
+      break;
+    }
+  }
+
+  return roles;
+}
+
+async function fetchPersonioRoles(target: TargetRow): Promise<ParsedRole[]> {
+  const url = personioXmlUrl(target);
+  const xml = await fetchText(url);
+  const parser = new XMLParser({ ignoreAttributes: false, trimValues: true });
+  const parsed = parser.parse(xml);
+  const root = asRecord(parsed, "Personio XML");
+  const jobsRoot = asRecordOrNull(root["workzag-jobs"]);
+  if (!jobsRoot) {
+    throw new Error("Personio XML did not contain workzag-jobs");
+  }
+
+  const positions = arrayFromMaybe(jobsRoot.position);
+  return positions.map((position) => {
+    const record = asRecord(position, "Personio position");
+    const id = requiredString(record.id, "Personio position id");
+    return {
+      external_id: id,
+      title: requiredString(record.name, "Personio position name"),
+      location: personioLocation(record),
+      apply_url: personioJobUrl(target, id)
     };
   });
 }
@@ -214,6 +300,15 @@ function optionalString(value: unknown): string | null {
   return text.length > 0 ? text : null;
 }
 
+function optionalNumber(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string") {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
 function firstRequiredString(values: unknown[], label: string): string {
   for (const value of values) {
     const text = optionalString(value);
@@ -229,6 +324,51 @@ function ashbyLocation(value: unknown): string | null {
   return optionalString(record.name) ?? optionalString(record.location) ?? optionalString(record.text);
 }
 
+function workableLocation(record: Record<string, unknown>): string | null {
+  const direct = joinNonEmpty([record.city, record.state, record.country]);
+  if (direct) return direct;
+
+  const locations = arrayFromMaybe(record.locations);
+  const firstLocation = locations.length > 0 ? asRecordOrNull(locations[0]) : null;
+  if (!firstLocation) return null;
+
+  return (
+    optionalString(firstLocation.name) ??
+    optionalString(firstLocation.location_str) ??
+    joinNonEmpty([firstLocation.city, firstLocation.region, firstLocation.country])
+  );
+}
+
+function recruiteeLocation(record: Record<string, unknown>): string | null {
+  const direct = optionalString(record.location) ?? joinNonEmpty([record.city, record.state_name, record.country]);
+  if (direct) return direct;
+
+  const locations = arrayFromMaybe(record.locations);
+  const firstLocation = locations.length > 0 ? asRecordOrNull(locations[0]) : null;
+  if (!firstLocation) return null;
+
+  return optionalString(firstLocation.name) ?? joinNonEmpty([firstLocation.city, firstLocation.state, firstLocation.country]);
+}
+
+function smartRecruitersRole(job: unknown, boardSlug: string): ParsedRole {
+  const record = asRecord(job, "SmartRecruiters posting");
+  const location = asRecordOrNull(record.location);
+  const id = firstRequiredString([record.id, record.uuid], "SmartRecruiters posting id");
+  return {
+    external_id: optionalString(record.uuid) ?? id,
+    title: requiredString(record.name, "SmartRecruiters posting name"),
+    location: location
+      ? optionalString(location.fullLocation) ?? joinNonEmpty([location.city, location.region, location.country])
+      : null,
+    apply_url: `https://jobs.smartrecruiters.com/${encodeURIComponent(boardSlug)}/${encodeURIComponent(id)}`
+  };
+}
+
+function personioLocation(record: Record<string, unknown>): string | null {
+  const offices = [record.office, ...arrayFromMaybe(asRecordOrNull(record.additionalOffices)?.office)];
+  return joinNonEmpty(offices);
+}
+
 function jobPostingLocation(value: unknown): string | null {
   if (typeof value === "string") return value.trim() || null;
   const first = Array.isArray(value) ? value[0] : value;
@@ -241,6 +381,43 @@ function jobPostingLocation(value: unknown): string | null {
     optionalString(address?.addressRegion) ??
     optionalString(address?.addressCountry)
   );
+}
+
+function recruiteeHost(boardSlug: string): string {
+  const trimmed = boardSlug.trim().replace(/^https?:\/\//, "").replace(/\/.*$/, "");
+  return trimmed.includes(".") ? trimmed : `${trimmed}.recruitee.com`;
+}
+
+function personioXmlUrl(target: TargetRow): string {
+  if (target.careers_url && /\/xml(?:\?.*)?$/.test(target.careers_url)) {
+    return target.careers_url;
+  }
+
+  if (target.board_slug) {
+    return `https://${encodeURIComponent(target.board_slug)}.jobs.personio.de/xml?language=en`;
+  }
+
+  throw new Error(`${target.name} is missing board_slug or XML careers_url`);
+}
+
+function personioJobUrl(target: TargetRow, id: string): string {
+  if (target.board_slug) {
+    return `https://${encodeURIComponent(target.board_slug)}.jobs.personio.de/job/${encodeURIComponent(id)}?display=en`;
+  }
+
+  const careersUrl = requiredCareersUrl(target);
+  return careersUrl.replace(/\/xml(?:\?.*)?$/, `/job/${encodeURIComponent(id)}?display=en`);
+}
+
+function arrayFromMaybe(value: unknown): unknown[] {
+  if (Array.isArray(value)) return value;
+  if (value === null || value === undefined) return [];
+  return [value];
+}
+
+function joinNonEmpty(values: unknown[]): string | null {
+  const parts = values.map((value) => optionalString(value)).filter((value): value is string => Boolean(value));
+  return parts.length > 0 ? parts.join(", ") : null;
 }
 
 function extractJsonLdObjects(html: string): unknown[] {

@@ -63,12 +63,14 @@ The service also registers slash commands on startup, so `npm run commands:regis
 - `/run mode:mid` - post only mid-level roles.
 - `/run mode:high` - post only high-level/senior roles.
 - `/run mode:all` - post every matching role, including senior/leadership roles.
+- `/run category:<category>` - scan only one category, such as `crypto-data`, `crypto-markets`, or `data-platforms`.
 - `/applications` - show active applications with Update and Close controls.
 - `/history limit:<N>` - show recent closed applications.
 - `/keywords` - show include/exclude terms and open add/remove modals.
 - `/targets list` - list targets with last-check status.
 - `/targets add` - add a target.
 - `/targets disable id:<id>` - disable a target without deleting it.
+- `/targets outreach id:<id> status:<status>` - track manual/outreach status for a target.
 - `/export` - download the current CSV export.
 
 ## Adding Targets
@@ -79,6 +81,10 @@ Examples:
 /targets add name:"Example Co" check_type:ats_greenhouse board_slug:"exampleco" careers_url:"https://boards.greenhouse.io/exampleco"
 /targets add name:"Example Protocol" check_type:ats_ashby board_slug:"exampleprotocol" careers_url:"https://jobs.ashbyhq.com/exampleprotocol"
 /targets add name:"Example Startup" check_type:ats_lever board_slug:"examplestartup" careers_url:"https://jobs.lever.co/examplestartup"
+/targets add name:"Example Workable" check_type:ats_workable board_slug:"exampleco" careers_url:"https://apply.workable.com/exampleco/"
+/targets add name:"Example Recruitee" check_type:ats_recruitee board_slug:"exampleco" careers_url:"https://exampleco.recruitee.com/"
+/targets add name:"Example SmartRecruiters" check_type:ats_smartrecruiters board_slug:"ExampleCo" careers_url:"https://jobs.smartrecruiters.com/ExampleCo"
+/targets add name:"Example Personio" check_type:ats_personio board_slug:"exampleco" careers_url:"https://exampleco.jobs.personio.de/xml?language=en"
 /targets add name:"Manual Flow" check_type:manual careers_url:"mailto:careers@example.com"
 ```
 
@@ -87,6 +93,10 @@ How to find common ATS slugs:
 - Greenhouse: look for `boards.greenhouse.io/{slug}` or `boards-api.greenhouse.io/v1/boards/{slug}/jobs`.
 - Ashby: look for `jobs.ashbyhq.com/{slug}` or `api.ashbyhq.com/posting-api/job-board/{slug}`.
 - Lever: look for `jobs.lever.co/{slug}`.
+- Workable: look for `apply.workable.com/{slug}`.
+- Recruitee: look for `{slug}.recruitee.com`.
+- SmartRecruiters: look for `jobs.smartrecruiters.com/{companyIdentifier}`.
+- Personio: look for `{slug}.jobs.personio.de/xml`.
 
 Use `manual` for Notion pages, email-only flows, GitHub PR application flows, Twitter-only posts, or anything that should not be scraped. Use `html` only when the page exposes JSON-LD `JobPosting` data; otherwise the bot marks the check as failed rather than guessing.
 
@@ -97,11 +107,14 @@ This repo includes seed files from the 2026-06-16 crypto/data target inventory:
 ```text
 data/targets/crypto-data-api-verified-2026-06-16.json
 data/targets/crypto-data-manual-2026-06-16.json
+data/targets/expanded-watchlist-2026-06-17.json
 ```
 
 The API seed contains the 57 API-verified Greenhouse, Ashby, and Lever rows. Aave is included as `ats_lever`; the fetcher detects `jobs.eu.lever.co` and uses Lever's EU API host for that target.
 
 The manual seed contains the 33 manual/API-failed targets. These are imported as `manual` so the bot reports them as manual-only checks instead of pretending they can be auto-scraped.
+
+The expanded watchlist adds 36 curated targets using Workable, Recruitee, SmartRecruiters, and Personio. It intentionally avoids very broad/noisy boards by default. If you want those, add them manually with a category and use `/run category:<category>`.
 
 Import the seed into the configured SQLite database:
 
@@ -121,7 +134,17 @@ Clicking `Apply` copies the role into `applications`, removes that live role fro
 
 ## Open Roles Refresh
 
-`open_roles` is a current snapshot table. Every scan preserves prior `first_seen_at` values in memory, clears `open_roles`, and inserts the current successful scrape results. Failed and manual targets do not insert stale roles. Application records are copied into `applications` at apply time and are never joined back to `open_roles` for core application data.
+`open_roles` is a current snapshot table. Every scan preserves prior `first_seen_at` values in memory, clears only the roles for the targets that were actually checked, and inserts the current successful scrape results for those targets. This allows `/run category:<category>` to refresh one category without wiping other categories from the snapshot. Failed and manual targets do not insert stale roles. Application records are copied into `applications` at apply time and are never joined back to `open_roles` for core application data.
+
+## Manual Outreach
+
+Manual-only targets can be tracked with a small outreach status record:
+
+```bash
+/targets outreach id:12 status:researching contact_url:"https://example.com/careers" notes:"Look for referral contact"
+```
+
+Statuses are `not_started`, `researching`, `contacted`, `applied`, and `paused`. This is target-level metadata only; application history still lives in `applications` and the CSV export.
 
 ## Keyword Matching
 
@@ -176,4 +199,4 @@ npm run build
 npm run smoke:fetchers
 ```
 
-`npm run smoke:fetchers` calls live example boards for Greenhouse, Ashby, and Lever and prints each status plus matching-role count. These examples are test-only and are not inserted into your `targets` table.
+`npm run smoke:fetchers` calls live example boards for Greenhouse, Ashby, Lever, Workable, Recruitee, SmartRecruiters, and Personio, then prints each status plus matching-role count. These examples are test-only and are not inserted into your `targets` table.

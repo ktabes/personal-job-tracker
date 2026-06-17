@@ -1,6 +1,6 @@
 import { SlashCommandBuilder } from "discord.js";
 import type { RESTPostAPIChatInputApplicationCommandsJSONBody } from "discord.js";
-import { CHECK_TYPES } from "../types.js";
+import { CHECK_TYPES, OUTREACH_STATUSES } from "../types.js";
 
 export const commandDefinitions: RESTPostAPIChatInputApplicationCommandsJSONBody[] = [
   new SlashCommandBuilder()
@@ -18,6 +18,12 @@ export const commandDefinitions: RESTPostAPIChatInputApplicationCommandsJSONBody
           { name: "High-level only", value: "high" },
           { name: "All roles", value: "all" },
         )
+    )
+    .addStringOption((option) =>
+      option
+        .setName("category")
+        .setDescription("Optional category to scan, such as crypto-data or data-platforms.")
+        .setRequired(false)
     ),
   new SlashCommandBuilder().setName("applications").setDescription("Show active applications."),
   new SlashCommandBuilder()
@@ -49,7 +55,7 @@ export const commandDefinitions: RESTPostAPIChatInputApplicationCommandsJSONBody
             .addChoices(...CHECK_TYPES.map((type) => ({ name: type, value: type })))
         )
         .addStringOption((option) =>
-          option.setName("board_slug").setDescription("ATS board slug for Greenhouse, Ashby, or Lever.").setRequired(false)
+          option.setName("board_slug").setDescription("Provider identifier such as a Greenhouse/Ashby/Lever slug.").setRequired(false)
         )
         .addStringOption((option) =>
           option.setName("careers_url").setDescription("Human-readable careers page or manual method URL.").setRequired(false)
@@ -63,6 +69,25 @@ export const commandDefinitions: RESTPostAPIChatInputApplicationCommandsJSONBody
         .setName("disable")
         .setDescription("Disable a target without deleting it.")
         .addIntegerOption((option) => option.setName("id").setDescription("Target ID.").setMinValue(1).setRequired(true))
+    )
+    .addSubcommand((subcommand) =>
+      subcommand
+        .setName("outreach")
+        .setDescription("Update manual/outreach status for a target.")
+        .addIntegerOption((option) => option.setName("id").setDescription("Target ID.").setMinValue(1).setRequired(true))
+        .addStringOption((option) =>
+          option
+            .setName("status")
+            .setDescription("Current outreach status.")
+            .setRequired(true)
+            .addChoices(...OUTREACH_STATUSES.map((status) => ({ name: status, value: status })))
+        )
+        .addStringOption((option) =>
+          option.setName("contact_url").setDescription("Optional contact, referral, or application URL.").setRequired(false)
+        )
+        .addStringOption((option) =>
+          option.setName("notes").setDescription("Optional short outreach note.").setRequired(false)
+        )
     ),
   new SlashCommandBuilder().setName("export").setDescription("Download the current applications CSV export.")
 ].map((command) => command.toJSON());

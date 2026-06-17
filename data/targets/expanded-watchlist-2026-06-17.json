@@ -1,0 +1,254 @@
+[
+  {
+    "name": "IO Global",
+    "check_type": "ats_workable",
+    "board_slug": "io-global",
+    "careers_url": "https://apply.workable.com/io-global/",
+    "category": "crypto-infra"
+  },
+  {
+    "name": "The Tie",
+    "check_type": "ats_workable",
+    "board_slug": "thetie",
+    "careers_url": "https://apply.workable.com/thetie/",
+    "category": "crypto-data"
+  },
+  {
+    "name": "Flowdesk",
+    "check_type": "ats_workable",
+    "board_slug": "flowdesk",
+    "careers_url": "https://apply.workable.com/flowdesk/",
+    "category": "crypto-markets"
+  },
+  {
+    "name": "CCData / CryptoCompare",
+    "check_type": "ats_workable",
+    "board_slug": "cryptocompare-1",
+    "careers_url": "https://apply.workable.com/cryptocompare-1/",
+    "category": "crypto-data"
+  },
+  {
+    "name": "Bitstamp",
+    "check_type": "ats_workable",
+    "board_slug": "bitstamp",
+    "careers_url": "https://apply.workable.com/bitstamp/",
+    "category": "crypto-markets"
+  },
+  {
+    "name": "Bitquery",
+    "check_type": "ats_workable",
+    "board_slug": "bitquery",
+    "careers_url": "https://apply.workable.com/bitquery/",
+    "category": "crypto-data"
+  },
+  {
+    "name": "WalletConnect",
+    "check_type": "ats_workable",
+    "board_slug": "walletconnect",
+    "careers_url": "https://apply.workable.com/walletconnect/",
+    "category": "wallets-indexers-rpc"
+  },
+  {
+    "name": "stakefish",
+    "check_type": "ats_workable",
+    "board_slug": "stakefish",
+    "careers_url": "https://apply.workable.com/stakefish/",
+    "category": "crypto-infra"
+  },
+  {
+    "name": "Gelato",
+    "check_type": "ats_workable",
+    "board_slug": "gelato-cloud",
+    "careers_url": "https://apply.workable.com/gelato-cloud/",
+    "category": "wallets-indexers-rpc"
+  },
+  {
+    "name": "Deblock",
+    "check_type": "ats_workable",
+    "board_slug": "deblock",
+    "careers_url": "https://apply.workable.com/deblock/",
+    "category": "fintech-crypto"
+  },
+  {
+    "name": "Token.com",
+    "check_type": "ats_workable",
+    "board_slug": "tokenweb3",
+    "careers_url": "https://apply.workable.com/tokenweb3/",
+    "category": "crypto-markets"
+  },
+  {
+    "name": "Alongside",
+    "check_type": "ats_workable",
+    "board_slug": "alongsidefinance",
+    "careers_url": "https://apply.workable.com/alongsidefinance/",
+    "category": "crypto-markets"
+  },
+  {
+    "name": "NDAX",
+    "check_type": "ats_workable",
+    "board_slug": "ndax",
+    "careers_url": "https://apply.workable.com/ndax/",
+    "category": "crypto-markets"
+  },
+  {
+    "name": "FreeDX",
+    "check_type": "ats_workable",
+    "board_slug": "freedx",
+    "careers_url": "https://apply.workable.com/freedx/",
+    "category": "crypto-markets"
+  },
+  {
+    "name": "Crypto Finance",
+    "check_type": "ats_workable",
+    "board_slug": "crypto-finance",
+    "careers_url": "https://apply.workable.com/crypto-finance/",
+    "category": "crypto-markets"
+  },
+  {
+    "name": "Pepperstone",
+    "check_type": "ats_workable",
+    "board_slug": "pepperstone",
+    "careers_url": "https://apply.workable.com/pepperstone/",
+    "category": "fintech-data"
+  },
+  {
+    "name": "RockawayX",
+    "check_type": "ats_workable",
+    "board_slug": "rockawayx",
+    "careers_url": "https://apply.workable.com/rockawayx/",
+    "category": "crypto-vc"
+  },
+  {
+    "name": "Delta Exchange",
+    "check_type": "ats_workable",
+    "board_slug": "deltaexchange",
+    "careers_url": "https://apply.workable.com/deltaexchange/",
+    "category": "crypto-markets"
+  },
+  {
+    "name": "WEBB Traders",
+    "check_type": "ats_recruitee",
+    "board_slug": "webbtraders",
+    "careers_url": "https://webbtraders.recruitee.com/",
+    "category": "fintech-data"
+  },
+  {
+    "name": "Bitfinex",
+    "check_type": "ats_recruitee",
+    "board_slug": "bitfinex",
+    "careers_url": "https://bitfinex.recruitee.com/",
+    "category": "crypto-markets"
+  },
+  {
+    "name": "Tether",
+    "check_type": "ats_recruitee",
+    "board_slug": "tether",
+    "careers_url": "https://tether.recruitee.com/",
+    "category": "crypto-markets"
+  },
+  {
+    "name": "Confirmo",
+    "check_type": "ats_recruitee",
+    "board_slug": "confirmo",
+    "careers_url": "https://confirmo.recruitee.com/",
+    "category": "fintech-crypto"
+  },
+  {
+    "name": "Chorus One",
+    "check_type": "ats_recruitee",
+    "board_slug": "chorusone1",
+    "careers_url": "https://chorusone1.recruitee.com/",
+    "category": "crypto-infra"
+  },
+  {
+    "name": "Autumn Compass",
+    "check_type": "ats_recruitee",
+    "board_slug": "autumncompass",
+    "careers_url": "https://autumncompass.recruitee.com/",
+    "category": "crypto-markets"
+  },
+  {
+    "name": "Addepto",
+    "check_type": "ats_recruitee",
+    "board_slug": "addepto",
+    "careers_url": "https://addepto.recruitee.com/",
+    "category": "data-platforms"
+  },
+  {
+    "name": "The Codest",
+    "check_type": "ats_recruitee",
+    "board_slug": "thecodest",
+    "careers_url": "https://thecodest.recruitee.com/",
+    "category": "data-platforms"
+  },
+  {
+    "name": "Datashift",
+    "check_type": "ats_recruitee",
+    "board_slug": "datashift",
+    "careers_url": "https://datashift.recruitee.com/",
+    "category": "data-platforms"
+  },
+  {
+    "name": "Auditdata",
+    "check_type": "ats_recruitee",
+    "board_slug": "auditdata",
+    "careers_url": "https://auditdata.recruitee.com/",
+    "category": "data-platforms"
+  },
+  {
+    "name": "Tropos",
+    "check_type": "ats_recruitee",
+    "board_slug": "tropos",
+    "careers_url": "https://tropos.recruitee.com/",
+    "category": "data-platforms"
+  },
+  {
+    "name": "Primeworks",
+    "check_type": "ats_recruitee",
+    "board_slug": "primeworks",
+    "careers_url": "https://primeworks.recruitee.com/",
+    "category": "data-platforms"
+  },
+  {
+    "name": "IG&H",
+    "check_type": "ats_recruitee",
+    "board_slug": "igh",
+    "careers_url": "https://igh.recruitee.com/",
+    "category": "data-platforms"
+  },
+  {
+    "name": "Avisia",
+    "check_type": "ats_recruitee",
+    "board_slug": "avisia",
+    "careers_url": "https://avisia.recruitee.com/",
+    "category": "data-platforms"
+  },
+  {
+    "name": "Invictus Capital",
+    "check_type": "ats_smartrecruiters",
+    "board_slug": "InvictusCapital",
+    "careers_url": "https://jobs.smartrecruiters.com/InvictusCapital",
+    "category": "crypto-data"
+  },
+  {
+    "name": "MicroStrategy",
+    "check_type": "ats_smartrecruiters",
+    "board_slug": "MicroStrategy1",
+    "careers_url": "https://jobs.smartrecruiters.com/MicroStrategy1",
+    "category": "bitcoin-data"
+  },
+  {
+    "name": "Scalable Capital",
+    "check_type": "ats_smartrecruiters",
+    "board_slug": "ScalableGmbH",
+    "careers_url": "https://jobs.smartrecruiters.com/ScalableGmbH",
+    "category": "fintech-data"
+  },
+  {
+    "name": "Personio",
+    "check_type": "ats_personio",
+    "board_slug": "personio",
+    "careers_url": "https://personio.jobs.personio.de/xml?language=en",
+    "category": "data-platforms"
+  }
+]

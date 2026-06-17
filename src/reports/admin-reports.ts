@@ -6,7 +6,9 @@ import {
   type MessageCreateOptions
 } from "discord.js";
 import { statusLabel } from "../db/repositories.js";
-import type { KeywordRow, TargetRow } from "../types.js";
+import type { KeywordRow, TargetRow, TargetWithOutreach } from "../types.js";
+
+const MAX_TARGETS_MESSAGE_LENGTH = 1_850;
 
 export function buildKeywordsReport(keywords: KeywordRow[]): MessageCreateOptions {
   const include = keywords.filter((keyword) => keyword.kind === "include").map((keyword) => keyword.term);
@@ -30,20 +32,34 @@ export function buildKeywordsReport(keywords: KeywordRow[]): MessageCreateOption
   };
 }
 
-export function buildTargetsReport(targets: TargetRow[]): MessageCreateOptions {
+type TargetReportRow = TargetRow | TargetWithOutreach;
+
+export function buildTargetsReport(targets: TargetReportRow[]): MessageCreateOptions[] {
   if (targets.length === 0) {
-    return { content: "**Targets**\nNo targets are configured yet." };
+    return [{ content: "**Targets**\nNo targets are configured yet." }];
   }
 
-  const lines = [
-    "**Targets**",
-    ...targets.map((target) => {
-      const active = target.active === 1 ? "active" : "disabled";
-      const slug = target.board_slug ? `; slug: ${target.board_slug}` : "";
-      const link = target.careers_url ? `; ${target.careers_url}` : "";
-      return `#${target.id} **${target.name}** - ${target.check_type}; ${active}; status: ${statusLabel(target.last_check_status)}${slug}${link}`;
-    })
-  ];
+  const pages: MessageCreateOptions[] = [];
+  let lines = ["**Targets**"];
 
-  return { content: lines.join("\n") };
+  for (const target of targets) {
+    const active = target.active === 1 ? "active" : "disabled";
+    const category = target.category ? `; category: ${target.category}` : "";
+    const slug = target.board_slug ? `; slug: ${target.board_slug}` : "";
+    const link = target.careers_url ? `; ${target.careers_url}` : "";
+    const outreach = "outreach_status" in target && target.outreach_status ? `; outreach: ${target.outreach_status}` : "";
+    const line = `#${target.id} **${target.name}** - ${target.check_type}; ${active}; status: ${statusLabel(target.last_check_status)}${category}${outreach}${slug}${link}`;
+    const nextContent = [...lines, line].join("\n");
+    if (lines.length > 1 && nextContent.length > MAX_TARGETS_MESSAGE_LENGTH) {
+      pages.push({ content: lines.join("\n") });
+      lines = ["**Targets**"];
+    }
+    lines.push(line);
+  }
+
+  if (lines.length > 1) {
+    pages.push({ content: lines.join("\n") });
+  }
+
+  return pages;
 }
