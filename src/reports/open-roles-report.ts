@@ -14,6 +14,15 @@ const MAX_BUTTONS_PER_MESSAGE = 25;
 const REPORT_COLOR = 0x2f80ed;
 
 type RoleBucket = "low" | "mid" | "high";
+type ContinentKey =
+  | "north_america"
+  | "europe"
+  | "asia"
+  | "oceania"
+  | "south_america"
+  | "africa"
+  | "remote_global"
+  | "unspecified";
 export type OpenRolesReportMode = "focused" | "all" | "low" | "mid" | "high";
 
 export interface BuiltOpenRolesReport {
@@ -25,6 +34,17 @@ const ROLE_BUCKETS: Array<{ key: RoleBucket; title: string }> = [
   { key: "low", title: "Low-Level" },
   { key: "mid", title: "Mid-Level" },
   { key: "high", title: "High-Level" }
+];
+
+const CONTINENT_ORDER: Array<{ key: ContinentKey; title: string }> = [
+  { key: "north_america", title: "North America" },
+  { key: "europe", title: "Europe" },
+  { key: "asia", title: "Asia" },
+  { key: "oceania", title: "Oceania" },
+  { key: "south_america", title: "South America" },
+  { key: "africa", title: "Africa" },
+  { key: "remote_global", title: "Remote / Global" },
+  { key: "unspecified", title: "Unspecified Location" }
 ];
 
 const LOWER_LEVEL_PATTERNS = [
@@ -62,6 +82,131 @@ const SENIOR_PATTERNS = [
   /\bcontroller\b/i
 ];
 
+const NORTH_AMERICA_TERMS = [
+  "north america",
+  "united states",
+  " usa ",
+  " u.s.",
+  " us ",
+  "canada",
+  "mexico",
+  "new york",
+  "san francisco",
+  "los angeles",
+  "chicago",
+  "boston",
+  "seattle",
+  "austin",
+  "denver",
+  "toronto",
+  "vancouver",
+  "montreal",
+  " ny",
+  " ca",
+  " tx",
+  " wa",
+  " ma",
+  " il"
+];
+
+const EUROPE_TERMS = [
+  "europe",
+  "emea",
+  "united kingdom",
+  " uk ",
+  "england",
+  "ireland",
+  "germany",
+  "france",
+  "netherlands",
+  "spain",
+  "portugal",
+  "italy",
+  "poland",
+  "switzerland",
+  "sweden",
+  "london",
+  "dublin",
+  "berlin",
+  "paris",
+  "amsterdam",
+  "warsaw",
+  "limassol"
+];
+
+const ASIA_TERMS = [
+  "asia",
+  "apac",
+  "singapore",
+  "hong kong",
+  "taiwan",
+  "japan",
+  "south korea",
+  "korea",
+  "india",
+  "thailand",
+  "vietnam",
+  "indonesia",
+  "philippines",
+  "malaysia",
+  "uae",
+  "dubai",
+  "tokyo",
+  "taipei",
+  "bangkok",
+  "jakarta",
+  "manila",
+  "kuala lumpur",
+  "ho chi minh"
+];
+
+const OCEANIA_TERMS = [
+  "oceania",
+  "australia",
+  "new zealand",
+  "melbourne",
+  "sydney",
+  "brisbane",
+  "perth",
+  "adelaide",
+  "canberra",
+  "auckland",
+  "wellington",
+  "victoria",
+  "cremorne",
+  " nsw",
+  " vic"
+];
+
+const SOUTH_AMERICA_TERMS = [
+  "south america",
+  "latin america",
+  "latam",
+  "brazil",
+  "argentina",
+  "chile",
+  "colombia",
+  "peru",
+  "sao paulo",
+  "buenos aires",
+  "bogota"
+];
+
+const AFRICA_TERMS = [
+  "africa",
+  "south africa",
+  "nigeria",
+  "kenya",
+  "egypt",
+  "cape town",
+  "johannesburg",
+  "lagos",
+  "nairobi",
+  "cairo"
+];
+
+const REMOTE_GLOBAL_TERMS = ["global", "worldwide", "anywhere", "remote"];
+
 export function buildOpenRolesReport(
   summary: ScanSummary,
   roles: OpenRoleWithTarget[],
@@ -90,13 +235,17 @@ function buildRoleMessages(roles: OpenRoleWithTarget[], mode: OpenRolesReportMod
 
 function buildBucketRoleMessages(bucketTitle: string, roles: OpenRoleWithTarget[]): MessageCreateOptions[] {
   const messages: MessageCreateOptions[] = [];
+  const sortedRoles = sortRolesForReport(roles);
   let lines: string[] = [];
   let buttons: ButtonBuilder[] = [];
+  let currentContinent: ContinentKey | null = null;
+  let currentCompany: string | null = null;
 
-  for (const role of roles) {
-    const roleNumber = buttons.length + 1;
-    const line = formatRoleLine(role, roleNumber);
-    const nextDescriptionLength = [...lines, line].join("\n").length;
+  for (const role of sortedRoles) {
+    let headers = groupHeadersForRole(role, currentContinent, currentCompany);
+    let roleNumber = buttons.length + 1;
+    let line = formatRoleLine(role, roleNumber);
+    let nextDescriptionLength = [...lines, ...headers, line].join("\n").length;
     if (
       lines.length > 0 &&
       (nextDescriptionLength > MAX_EMBED_DESCRIPTION_LENGTH || buttons.length >= MAX_BUTTONS_PER_MESSAGE)
@@ -104,14 +253,21 @@ function buildBucketRoleMessages(bucketTitle: string, roles: OpenRoleWithTarget[
       messages.push(toRoleMessage(bucketTitle, lines, buttons, messages.length + 1));
       lines = [];
       buttons = [];
+      currentContinent = null;
+      currentCompany = null;
+      headers = groupHeadersForRole(role, currentContinent, currentCompany);
+      roleNumber = buttons.length + 1;
+      line = formatRoleLine(role, roleNumber);
+      nextDescriptionLength = [...lines, ...headers, line].join("\n").length;
     }
 
-    const nextRoleNumber = buttons.length + 1;
-    lines.push(formatRoleLine(role, nextRoleNumber));
+    lines.push(...headers, line);
+    currentContinent = continentForRole(role);
+    currentCompany = role.company;
     buttons.push(
       new ButtonBuilder()
         .setCustomId(`apply:${role.id}`)
-        .setLabel(`Apply #${nextRoleNumber} ✅`)
+        .setLabel(`Apply #${roleNumber} ✅`)
         .setStyle(ButtonStyle.Success)
     );
   }
@@ -285,10 +441,70 @@ function classifyRole(role: OpenRoleWithTarget): RoleBucket {
 }
 
 function formatRoleLine(role: OpenRoleWithTarget, roleNumber: number): string {
-  const company = truncateText(role.company, 42);
   const title = escapeLinkText(truncateText(role.title, 92));
   const location = role.location ? ` - ${truncateText(role.location, 60)}` : "";
-  return `**#${roleNumber} ${company}** - [${title}](${role.apply_url})${location}`;
+  return `**#${roleNumber}** [${title}](${role.apply_url})${location}`;
+}
+
+function sortRolesForReport(roles: OpenRoleWithTarget[]): OpenRoleWithTarget[] {
+  return [...roles].sort((left, right) => {
+    const leftContinent = continentForRole(left);
+    const rightContinent = continentForRole(right);
+    const continentDelta = continentRank(leftContinent) - continentRank(rightContinent);
+    if (continentDelta !== 0) return continentDelta;
+
+    const companyDelta = left.company.localeCompare(right.company, undefined, { sensitivity: "base" });
+    if (companyDelta !== 0) return companyDelta;
+
+    return left.title.localeCompare(right.title, undefined, { sensitivity: "base" });
+  });
+}
+
+function groupHeadersForRole(
+  role: OpenRoleWithTarget,
+  currentContinent: ContinentKey | null,
+  currentCompany: string | null
+): string[] {
+  const continent = continentForRole(role);
+  const headers: string[] = [];
+  if (continent !== currentContinent) {
+    headers.push(`**${continentTitle(continent)}**`);
+  }
+  if (continent !== currentContinent || role.company !== currentCompany) {
+    headers.push(`__${truncateText(role.company, 72)}__`);
+  }
+  return headers;
+}
+
+function continentForRole(role: OpenRoleWithTarget): ContinentKey {
+  return continentForLocation(role.location);
+}
+
+function continentForLocation(location: string | null): ContinentKey {
+  const normalized = ` ${location?.toLowerCase() ?? ""} `;
+  if (!normalized.trim()) return "unspecified";
+
+  if (matchesAny(normalized, NORTH_AMERICA_TERMS)) return "north_america";
+  if (matchesAny(normalized, EUROPE_TERMS)) return "europe";
+  if (matchesAny(normalized, ASIA_TERMS)) return "asia";
+  if (matchesAny(normalized, OCEANIA_TERMS)) return "oceania";
+  if (matchesAny(normalized, SOUTH_AMERICA_TERMS)) return "south_america";
+  if (matchesAny(normalized, AFRICA_TERMS)) return "africa";
+  if (matchesAny(normalized, REMOTE_GLOBAL_TERMS)) return "remote_global";
+  return "unspecified";
+}
+
+function continentTitle(continent: ContinentKey): string {
+  return CONTINENT_ORDER.find((item) => item.key === continent)?.title ?? "Unspecified Location";
+}
+
+function continentRank(continent: ContinentKey): number {
+  const index = CONTINENT_ORDER.findIndex((item) => item.key === continent);
+  return index >= 0 ? index : CONTINENT_ORDER.length;
+}
+
+function matchesAny(value: string, terms: string[]): boolean {
+  return terms.some((term) => value.includes(term));
 }
 
 function escapeLinkText(value: string): string {

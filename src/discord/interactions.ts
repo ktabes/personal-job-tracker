@@ -398,7 +398,7 @@ function removeRoleLine(description: string, roleNumber: string | undefined): st
   if (!roleNumber) return description;
   return description
     .split("\n")
-    .filter((line) => !line.startsWith(`**#${roleNumber} `))
+    .filter((line) => !line.startsWith(`**#${roleNumber} `) && !line.startsWith(`**#${roleNumber}**`))
     .join("\n");
 }
 

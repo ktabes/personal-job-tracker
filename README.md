@@ -137,6 +137,8 @@ Railway also runs this import before starting the bot, so a fresh volume is seed
 
 Open-role reports use a daily report window in `REPORT_TIMEZONE`. The window starts at 9:00 AM America/New_York and runs until 8:59:59 AM the next day. A role shown once in that window is not shown again in later `/run` calls or the 5 PM same-day scan. At 9:00 AM the next day, the window changes and eligible roles can appear again.
 
+Within each low/mid/high level section, role messages are grouped by continent first, then company, then role title.
+
 Clicking `Apply` copies the role into `applications`, removes that live role from `open_roles`, records the role identity in `applied_roles`, and regenerates the CSV. That applied role is excluded from future reports even if the company keeps the posting open.
 
 Use `/application add` for jobs found outside the bot's scan. It opens a modal for company, role title, apply URL, date applied, and notes. The resulting row is a normal active application, so it appears in `/applications`, can be updated or closed, and is exported to the CSV.
