@@ -10,7 +10,7 @@ import type { OpenRoleWithTarget } from "../types.js";
 import type { ScanSummary } from "../scraper/scanner.js";
 
 const MAX_EMBED_DESCRIPTION_LENGTH = 3_800;
-const MAX_BUTTONS_PER_MESSAGE = 25;
+const MAX_ROLES_PER_MESSAGE = 25;
 const REPORT_COLOR = 0x2f80ed;
 
 type RoleBucket = "low" | "mid" | "high";
@@ -237,43 +237,38 @@ function buildBucketRoleMessages(bucketTitle: string, roles: OpenRoleWithTarget[
   const messages: MessageCreateOptions[] = [];
   const sortedRoles = sortRolesForReport(roles);
   let lines: string[] = [];
-  let buttons: ButtonBuilder[] = [];
+  let roleCount = 0;
   let currentContinent: ContinentKey | null = null;
   let currentCompany: string | null = null;
 
   for (const role of sortedRoles) {
     let headers = groupHeadersForRole(role, currentContinent, currentCompany);
-    let roleNumber = buttons.length + 1;
+    let roleNumber = roleCount + 1;
     let line = formatRoleLine(role, roleNumber);
     let nextDescriptionLength = [...lines, ...headers, line].join("\n").length;
     if (
       lines.length > 0 &&
-      (nextDescriptionLength > MAX_EMBED_DESCRIPTION_LENGTH || buttons.length >= MAX_BUTTONS_PER_MESSAGE)
+      (nextDescriptionLength > MAX_EMBED_DESCRIPTION_LENGTH || roleCount >= MAX_ROLES_PER_MESSAGE)
     ) {
-      messages.push(toRoleMessage(bucketTitle, lines, buttons, messages.length + 1));
+      messages.push(toRoleMessage(bucketTitle, lines, messages.length + 1));
       lines = [];
-      buttons = [];
+      roleCount = 0;
       currentContinent = null;
       currentCompany = null;
       headers = groupHeadersForRole(role, currentContinent, currentCompany);
-      roleNumber = buttons.length + 1;
+      roleNumber = roleCount + 1;
       line = formatRoleLine(role, roleNumber);
       nextDescriptionLength = [...lines, ...headers, line].join("\n").length;
     }
 
     lines.push(...headers, line);
+    roleCount += 1;
     currentContinent = continentForRole(role);
     currentCompany = role.company;
-    buttons.push(
-      new ButtonBuilder()
-        .setCustomId(`apply:${role.id}`)
-        .setLabel(`Apply #${roleNumber} ✅`)
-        .setStyle(ButtonStyle.Success)
-    );
   }
 
   if (lines.length > 0) {
-    messages.push(toRoleMessage(bucketTitle, lines, buttons, messages.length + 1));
+    messages.push(toRoleMessage(bucketTitle, lines, messages.length + 1));
   }
 
   return messages;
@@ -351,7 +346,6 @@ function buildStatusMessage(
 function toRoleMessage(
   bucketTitle: string,
   lines: string[],
-  buttons: ButtonBuilder[],
   page: number
 ): MessageCreateOptions {
   return {
@@ -359,21 +353,16 @@ function toRoleMessage(
       new EmbedBuilder()
         .setTitle(`${bucketTitle} - Page ${page}`)
         .setDescription(lines.join("\n"))
-        .setFooter({ text: "Click the matching Apply button below to track an application." })
+        .setFooter({ text: "Use Apply to track a role or Hide to suppress one from future reports." })
         .setColor(REPORT_COLOR)
     ],
-    components: chunk(buttons, 5).map((buttonRow) =>
-      new ActionRowBuilder<MessageActionRowComponentBuilder>().addComponents(...buttonRow)
-    )
+    components: [
+      new ActionRowBuilder<MessageActionRowComponentBuilder>().addComponents(
+        new ButtonBuilder().setCustomId("apply_menu").setLabel("Apply").setStyle(ButtonStyle.Success),
+        new ButtonBuilder().setCustomId("hide_menu").setLabel("Hide").setStyle(ButtonStyle.Secondary)
+      )
+    ]
   };
-}
-
-function chunk<T>(items: T[], size: number): T[][] {
-  const chunks: T[][] = [];
-  for (let index = 0; index < items.length; index += size) {
-    chunks.push(items.slice(index, index + size));
-  }
-  return chunks;
 }
 
 function bucketRoles(roles: OpenRoleWithTarget[]): Record<RoleBucket, OpenRoleWithTarget[]> {

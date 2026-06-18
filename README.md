@@ -141,6 +141,8 @@ Within each low/mid/high level section, role messages are grouped by continent f
 
 Clicking `Apply` copies the role into `applications`, removes that live role from `open_roles`, records the role identity in `applied_roles`, and regenerates the CSV. That applied role is excluded from future reports even if the company keeps the posting open.
 
+Each role report message has one `Apply` control and one `Hide` control. Each opens a numbered selector for the roles in that message. `Hide` lets you suppress a role for 7 days, 30 days, or forever; hidden roles are excluded from future reports until their suppression expires.
+
 Use `/application add` for jobs found outside the bot's scan. It opens a modal for company, role title, apply URL, date applied, and notes. The resulting row is a normal active application, so it appears in `/applications`, can be updated or closed, and is exported to the CSV.
 
 ## Open Roles Refresh

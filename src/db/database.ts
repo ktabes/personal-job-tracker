@@ -121,6 +121,22 @@ function initSchema(database: Database.Database): void {
     );
 
     CREATE INDEX IF NOT EXISTS idx_applied_roles_role ON applied_roles(target_id, role_key);
+
+    CREATE TABLE IF NOT EXISTS hidden_roles (
+      id INTEGER PRIMARY KEY,
+      target_id INTEGER NOT NULL REFERENCES targets(id) ON DELETE CASCADE,
+      role_key TEXT NOT NULL,
+      company TEXT NOT NULL,
+      role_title TEXT NOT NULL,
+      apply_url TEXT,
+      suppressed_until TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      UNIQUE(target_id, role_key)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_hidden_roles_role ON hidden_roles(target_id, role_key);
+    CREATE INDEX IF NOT EXISTS idx_hidden_roles_until ON hidden_roles(suppressed_until);
   `);
   ensureTargetsLocationFilterColumn(database);
   migrateTargetsCheckTypeConstraint(database);

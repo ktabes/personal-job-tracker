@@ -61,6 +61,8 @@ interface UpdateTargetOutreachInput {
   notes?: string | null;
 }
 
+export type RoleHideDurationDays = 7 | 30 | null;
+
 const ROLE_KEY_SQL =
   "CASE WHEN open_roles.external_id IS NOT NULL AND open_roles.external_id <> '' THEN 'external:' || open_roles.external_id ELSE 'url:' || open_roles.apply_url || ':title:' || open_roles.title END";
 
@@ -232,6 +234,7 @@ export class JobTrackerRepository {
 
   listReportableOpenRolesWithTargets(reportWindow: string, category: string | null = null): OpenRoleWithTarget[] {
     const { categoryFilter, params } = openRoleCategoryFilter(category);
+    const timestamp = nowIso();
     return this.db
       .prepare(
         `SELECT open_roles.*, targets.name AS company, targets.last_check_status AS target_check_status
@@ -247,6 +250,13 @@ export class JobTrackerRepository {
          )
            AND NOT EXISTS (
              SELECT 1
+             FROM hidden_roles
+             WHERE hidden_roles.target_id = open_roles.target_id
+               AND hidden_roles.role_key = ${ROLE_KEY_SQL}
+               AND (hidden_roles.suppressed_until IS NULL OR hidden_roles.suppressed_until > ?)
+           )
+           AND NOT EXISTS (
+             SELECT 1
              FROM applied_roles
              WHERE applied_roles.target_id = open_roles.target_id
                AND applied_roles.role_key = ${ROLE_KEY_SQL}
@@ -260,7 +270,7 @@ export class JobTrackerRepository {
          )
          ORDER BY lower(targets.name), lower(open_roles.title)`
       )
-      .all(...params, reportWindow) as OpenRoleWithTarget[];
+      .all(...params, reportWindow, timestamp) as OpenRoleWithTarget[];
   }
 
   markRolesReported(roles: OpenRoleWithTarget[], reportWindow: string, reportedAt = nowIso()): void {
@@ -289,6 +299,21 @@ export class JobTrackerRepository {
            WHERE open_roles.id = ?`
         )
         .get(id) as OpenRoleWithTarget | undefined) ?? null
+    );
+  }
+
+  getOpenRoleWithTargetByApplyUrl(applyUrl: string): OpenRoleWithTarget | null {
+    return (
+      (this.db
+        .prepare(
+          `SELECT open_roles.*, targets.name AS company, targets.last_check_status AS target_check_status
+           FROM open_roles
+           JOIN targets ON targets.id = open_roles.target_id
+           WHERE open_roles.apply_url = ?
+           ORDER BY open_roles.id
+           LIMIT 1`
+        )
+        .get(applyUrl) as OpenRoleWithTarget | undefined) ?? null
     );
   }
 
@@ -392,6 +417,35 @@ export class JobTrackerRepository {
     const application = this.getApplication(Number(info.lastInsertRowid));
     this.regenerateCsv();
     return { application, created: true };
+  }
+
+  hideOpenRole(role: OpenRoleWithTarget, durationDays: RoleHideDurationDays): string | null {
+    const timestamp = nowIso();
+    const suppressedUntil = durationDays === null ? null : daysFromNowIso(durationDays);
+
+    this.db
+      .prepare(
+        `INSERT INTO hidden_roles (
+          target_id,
+          role_key,
+          company,
+          role_title,
+          apply_url,
+          suppressed_until,
+          created_at,
+          updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(target_id, role_key) DO UPDATE SET
+          company = excluded.company,
+          role_title = excluded.role_title,
+          apply_url = excluded.apply_url,
+          suppressed_until = excluded.suppressed_until,
+          updated_at = excluded.updated_at`
+      )
+      .run(role.target_id, openRoleKey(role), role.company, role.title, role.apply_url, suppressedUntil, timestamp, timestamp);
+
+    this.deleteOpenRole(role.id);
+    return suppressedUntil;
   }
 
   private markRoleApplied(role: OpenRoleWithTarget, applicationId: number): void {
@@ -546,6 +600,10 @@ function presentOrCurrent(next: string | null | undefined, current: string | nul
 function emptyToNull(value: string | null | undefined): string | null {
   const trimmed = value?.trim() ?? "";
   return trimmed.length > 0 ? trimmed : null;
+}
+
+function daysFromNowIso(days: number): string {
+  return new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
 }
 
 function targetWhereClause(includeInactive: boolean, category: string | null): { where: string; params: string[] } {

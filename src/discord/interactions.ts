@@ -10,6 +10,7 @@ import {
   Interaction,
   type InteractionEditReplyOptions,
   type InteractionReplyOptions,
+  type Message,
   MessageFlags,
   ModalBuilder,
   StringSelectMenuBuilder,
@@ -21,7 +22,7 @@ import {
   type StringSelectMenuInteraction
 } from "discord.js";
 import { config } from "../config.js";
-import type { JobTrackerRepository } from "../db/repositories.js";
+import type { JobTrackerRepository, RoleHideDurationDays } from "../db/repositories.js";
 import { buildKeywordsReport, buildTargetsReport } from "../reports/admin-reports.js";
 import { buildActiveApplicationsDigest, buildClosedApplicationsHistory } from "../reports/applications-report.js";
 import { buildOpenRolesReport, type OpenRolesReportMode } from "../reports/open-roles-report.js";
@@ -34,9 +35,16 @@ import {
   type CheckType,
   type ClosedSubStatus,
   type KeywordKind,
+  type OpenRoleWithTarget,
   type OutreachStatus
 } from "../types.js";
 import { sendMessagesToConfiguredChannel } from "./send.js";
+
+interface RoleSelectOption {
+  label: string;
+  value: string;
+  description?: string;
+}
 
 export class InteractionHandler {
   constructor(
@@ -185,6 +193,11 @@ export class InteractionHandler {
   private async handleButton(customId: string, interaction: ButtonInteraction): Promise<void> {
     const [action, idRaw, kindRaw] = customId.split(":");
 
+    if (action === "apply_menu" || action === "hide_menu") {
+      await this.handleRoleMenuButton(action, interaction);
+      return;
+    }
+
     if (action === "apply") {
       const roleId = parseIntegerId(idRaw);
       const role = this.repository.getOpenRoleWithTarget(roleId);
@@ -234,11 +247,106 @@ export class InteractionHandler {
     }
   }
 
+  private async handleRoleMenuButton(action: "apply_menu" | "hide_menu", interaction: ButtonInteraction): Promise<void> {
+    const options = roleOptionsFromMessage(interaction.message, this.repository);
+    if (options.length === 0) {
+      await interaction.reply({
+        content: "No current roles from this message are still available to select.",
+        flags: MessageFlags.Ephemeral
+      });
+      return;
+    }
+
+    await interaction.reply({
+      content: action === "apply_menu" ? "Choose the role number to track." : "Choose the role number to hide.",
+      components: [
+        buildRoleSelect(
+          action === "apply_menu" ? "apply_role_select" : "hide_role_select",
+          options,
+          interaction.channelId,
+          interaction.message.id
+        )
+      ],
+      flags: MessageFlags.Ephemeral
+    });
+  }
+
   private async handleStringSelect(interaction: StringSelectMenuInteraction): Promise<void> {
-    const [action, idRaw] = interaction.customId.split(":");
+    const [action, ...customIdParts] = interaction.customId.split(":");
+    if (action === "apply_role_select") {
+      const [sourceChannelId, sourceMessageId] = customIdParts;
+      const roleId = parseIntegerId(interaction.values[0]);
+      const role = this.repository.getOpenRoleWithTarget(roleId);
+      if (!role) {
+        await interaction.update({
+          content: "That role is no longer in the current open roles snapshot.",
+          components: []
+        });
+        return;
+      }
+
+      const application = this.repository.createApplicationFromOpenRole(
+        role,
+        todayIsoDateInTimezone(config.reportTimezone)
+      );
+      const sourceMessage = await fetchMessage(this.client, sourceChannelId, sourceMessageId);
+      if (sourceMessage) {
+        await removeRoleFromReportMessage(sourceMessage, role);
+      }
+      await interaction.update({
+        content: `Tracked application #${application.id}: ${application.company} - ${application.role_title}.`,
+        components: []
+      });
+      return;
+    }
+
+    if (action === "hide_role_select") {
+      const [sourceChannelId, sourceMessageId] = customIdParts;
+      const roleId = parseIntegerId(interaction.values[0]);
+      const role = this.repository.getOpenRoleWithTarget(roleId);
+      if (!role) {
+        await interaction.update({
+          content: "That role is no longer in the current open roles snapshot.",
+          components: []
+        });
+        return;
+      }
+
+      await interaction.update({
+        content: `Hide #${role.id}: ${role.company} - ${role.title} for how long?`,
+        components: [buildHideDurationSelect(role.id, sourceChannelId, sourceMessageId)]
+      });
+      return;
+    }
+
+    if (action === "hide_duration") {
+      const [roleIdRaw, sourceChannelId, sourceMessageId] = customIdParts;
+      const roleId = parseIntegerId(roleIdRaw);
+      const role = this.repository.getOpenRoleWithTarget(roleId);
+      if (!role) {
+        await interaction.update({
+          content: "That role is no longer in the current open roles snapshot.",
+          components: []
+        });
+        return;
+      }
+
+      const duration = parseHideDuration(interaction.values[0]);
+      const suppressedUntil = this.repository.hideOpenRole(role, duration);
+      const sourceMessage = await fetchMessage(this.client, sourceChannelId, sourceMessageId);
+      if (sourceMessage) {
+        await removeRoleFromReportMessage(sourceMessage, role);
+      }
+      await interaction.update({
+        content: hiddenRoleConfirmation(role, duration, suppressedUntil),
+        components: []
+      });
+      return;
+    }
+
     if (action !== "close_status") return;
 
-    const applicationId = parseIntegerId(idRaw);
+    const applicationId = parseIntegerId(customIdParts[0]);
     const subStatus = parseClosedSubStatus(interaction.values[0]);
     await interaction.showModal(buildCloseModal(applicationId, subStatus));
   }
@@ -364,6 +472,118 @@ function toInteractionReplyOptions(message: MessageCreateOptions): InteractionRe
     embeds: message.embeds,
     allowedMentions: message.allowedMentions
   };
+}
+
+function roleOptionsFromMessage(message: Message, repository: JobTrackerRepository): RoleSelectOption[] {
+  const description = message.embeds[0]?.description ?? "";
+  const options: RoleSelectOption[] = [];
+  const seenRoleIds = new Set<number>();
+  for (const line of description.split("\n")) {
+    const parsed = parseRoleLine(line);
+    if (!parsed) continue;
+    const role = repository.getOpenRoleWithTargetByApplyUrl(parsed.applyUrl);
+    if (!role || seenRoleIds.has(role.id)) continue;
+    seenRoleIds.add(role.id);
+    options.push({
+      label: truncateSelectText(`#${parsed.number} ${role.company} - ${role.title}`, 100),
+      value: String(role.id),
+      description: role.location ? truncateSelectText(role.location, 100) : undefined
+    });
+  }
+  return options.slice(0, 25);
+}
+
+function parseRoleLine(line: string): { number: string; applyUrl: string } | null {
+  const match = line.match(/^\*\*#(\d+)\*\* \[[^\]]+\]\((.+?)\)/);
+  if (!match) return null;
+  return { number: match[1], applyUrl: match[2] };
+}
+
+function buildRoleSelect(
+  action: "apply_role_select" | "hide_role_select",
+  options: RoleSelectOption[],
+  channelId: string,
+  messageId: string
+): ActionRowBuilder<MessageActionRowComponentBuilder> {
+  return new ActionRowBuilder<MessageActionRowComponentBuilder>().addComponents(
+    new StringSelectMenuBuilder()
+      .setCustomId(`${action}:${channelId}:${messageId}`)
+      .setPlaceholder(action === "apply_role_select" ? "Select role to apply" : "Select role to hide")
+      .addOptions(options)
+  );
+}
+
+function buildHideDurationSelect(
+  roleId: number,
+  channelId: string,
+  messageId: string
+): ActionRowBuilder<MessageActionRowComponentBuilder> {
+  return new ActionRowBuilder<MessageActionRowComponentBuilder>().addComponents(
+    new StringSelectMenuBuilder()
+      .setCustomId(`hide_duration:${roleId}:${channelId}:${messageId}`)
+      .setPlaceholder("Hide duration")
+      .addOptions(
+        { label: "7 days", value: "7", description: "Hide this role for one week." },
+        { label: "30 days", value: "30", description: "Hide this role for roughly one month." },
+        { label: "Forever", value: "forever", description: "Do not show this role again." }
+      )
+  );
+}
+
+function parseHideDuration(value: string | undefined): RoleHideDurationDays {
+  if (value === "7") return 7;
+  if (value === "30") return 30;
+  if (value === "forever") return null;
+  throw new Error(`Invalid hide duration ${value}`);
+}
+
+function hiddenRoleConfirmation(
+  role: OpenRoleWithTarget,
+  duration: RoleHideDurationDays,
+  suppressedUntil: string | null
+): string {
+  const prefix = `Hidden role: ${role.company} - ${role.title}.`;
+  if (duration === null) return `${prefix} It will not appear in future reports.`;
+  return `${prefix} It is hidden until ${suppressedUntil}.`;
+}
+
+async function fetchMessage(client: Client, channelId: string | undefined, messageId: string | undefined): Promise<Message | null> {
+  if (!channelId || !messageId) return null;
+  const channel = await client.channels.fetch(channelId).catch(() => null);
+  if (!channel?.isTextBased()) return null;
+  return channel.messages.fetch(messageId).catch(() => null);
+}
+
+async function removeRoleFromReportMessage(message: Message, role: OpenRoleWithTarget): Promise<void> {
+  const originalEmbed = message.embeds[0];
+  const description = originalEmbed?.description ?? "";
+  const nextDescription = removeRoleLineByApplyUrl(description, role.apply_url);
+  const hasRoleLines = nextDescription.split("\n").some((line) => parseRoleLine(line));
+  const embeds = originalEmbed
+    ? [
+        EmbedBuilder.from(originalEmbed).setDescription(
+          hasRoleLines ? nextDescription : "All roles in this message are now hidden or tracked."
+        )
+      ]
+    : [];
+
+  await message
+    .edit({
+      embeds,
+      components: hasRoleLines ? message.components : []
+    })
+    .catch(() => undefined);
+}
+
+function removeRoleLineByApplyUrl(description: string, applyUrl: string): string {
+  return description
+    .split("\n")
+    .filter((line) => !line.includes(`](${applyUrl})`))
+    .join("\n");
+}
+
+function truncateSelectText(value: string, maxLength: number): string {
+  return value.length > maxLength ? `${value.slice(0, maxLength - 3)}...` : value;
 }
 
 async function removeAppliedRoleFromSourceMessage(interaction: ButtonInteraction, customId: string): Promise<void> {
