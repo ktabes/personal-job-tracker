@@ -27,7 +27,6 @@ export type OpenRolesReportMode = "focused" | "all" | "low" | "mid" | "high";
 
 export interface BuiltOpenRolesReport {
   messages: MessageCreateOptions[];
-  reportedRoles: OpenRoleWithTarget[];
 }
 
 const ROLE_BUCKETS: Array<{ key: RoleBucket; title: string }> = [
@@ -214,8 +213,7 @@ export function buildOpenRolesReport(
 ): BuiltOpenRolesReport {
   const includedRoles = filterRolesForMode(roles, mode);
   return {
-    messages: [buildStatusMessage(summary, roles, includedRoles, mode), ...buildRoleMessages(includedRoles, mode)],
-    reportedRoles: includedRoles
+    messages: [buildStatusMessage(summary, roles, includedRoles, mode), ...buildRoleMessages(includedRoles, mode)]
   };
 }
 

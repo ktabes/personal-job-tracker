@@ -7,14 +7,6 @@ export function todayIsoDateInTimezone(timeZone: string): string {
   return `${parts.year}-${parts.month}-${parts.day}`;
 }
 
-export function currentReportWindowKey(timeZone: string, date = new Date()): string {
-  const parts = dateTimePartsInTimezone(date, timeZone);
-  if (Number(parts.hour) >= 9) {
-    return `${parts.year}-${parts.month}-${parts.day}`;
-  }
-  return previousIsoDate(parts.year, parts.month, parts.day);
-}
-
 export function isIsoDate(value: string): boolean {
   return /^\d{4}-\d{2}-\d{2}$/.test(value);
 }
@@ -44,10 +36,4 @@ function dateTimePartsInTimezone(date: Date, timeZone: string): {
   }
 
   return { year, month, day, hour };
-}
-
-function previousIsoDate(year: string, month: string, day: string): string {
-  const utcDate = Date.UTC(Number(year), Number(month) - 1, Number(day));
-  const previous = new Date(utcDate - 24 * 60 * 60 * 1000);
-  return previous.toISOString().slice(0, 10);
 }

@@ -27,7 +27,7 @@ import { buildKeywordsReport, buildTargetsReport } from "../reports/admin-report
 import { buildActiveApplicationsDigest, buildClosedApplicationsHistory } from "../reports/applications-report.js";
 import { buildOpenRolesReport, type OpenRolesReportMode } from "../reports/open-roles-report.js";
 import { scanTargets } from "../scraper/scanner.js";
-import { currentReportWindowKey, isIsoDate, todayIsoDateInTimezone } from "../time.js";
+import { isIsoDate, todayIsoDateInTimezone } from "../time.js";
 import {
   CHECK_TYPES,
   CLOSED_SUB_STATUSES,
@@ -109,11 +109,9 @@ export class InteractionHandler {
     const mode = parseOpenRolesReportMode(interaction.options.getString("mode") ?? "focused");
     const category = emptyToNull(interaction.options.getString("category"));
     const summary = await scanTargets(this.repository, category);
-    const reportWindow = currentReportWindowKey(config.reportTimezone);
-    const reportableRoles = this.repository.listReportableOpenRolesWithTargets(reportWindow, category);
+    const reportableRoles = this.repository.listReportableOpenRolesWithTargets(category);
     const report = buildOpenRolesReport(summary, reportableRoles, mode);
     await sendMessagesToConfiguredChannel(this.client, report.messages);
-    this.repository.markRolesReported(report.reportedRoles, reportWindow);
     const scope = category ? ` for category ${category}` : "";
     await interaction.editReply(`Open roles scan${scope} finished and the ${mode} report was posted to the configured channel.`);
   }

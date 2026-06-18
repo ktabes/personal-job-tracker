@@ -135,7 +135,7 @@ Railway also runs this import before starting the bot, so a fresh volume is seed
 
 ## Report Suppression And Apply Safety
 
-Open-role reports use a daily report window in `REPORT_TIMEZONE`. The window starts at 9:00 AM America/New_York and runs until 8:59:59 AM the next day. A role shown once in that window is not shown again in later `/run` calls or the 5 PM same-day scan. At 9:00 AM the next day, the window changes and eligible roles can appear again.
+Open-role reports no longer suppress roles just because they appeared in an earlier run. If a role is still open and has not been applied to or hidden, it can appear again in later `/run` calls and scheduled reports.
 
 Within each low/mid/high level section, role messages are grouped by continent first, then company, then role title.
 

@@ -232,7 +232,7 @@ export class JobTrackerRepository {
       .all(...params) as OpenRoleWithTarget[];
   }
 
-  listReportableOpenRolesWithTargets(reportWindow: string, category: string | null = null): OpenRoleWithTarget[] {
+  listReportableOpenRolesWithTargets(category: string | null = null): OpenRoleWithTarget[] {
     const { categoryFilter, params } = openRoleCategoryFilter(category);
     const timestamp = nowIso();
     return this.db
@@ -241,13 +241,6 @@ export class JobTrackerRepository {
          FROM open_roles
          JOIN targets ON targets.id = open_roles.target_id
          WHERE targets.active = 1${categoryFilter}
-           AND NOT EXISTS (
-           SELECT 1
-           FROM role_report_history
-           WHERE role_report_history.target_id = open_roles.target_id
-             AND role_report_history.role_key = ${ROLE_KEY_SQL}
-             AND role_report_history.report_window = ?
-         )
            AND NOT EXISTS (
              SELECT 1
              FROM hidden_roles
@@ -270,23 +263,7 @@ export class JobTrackerRepository {
          )
          ORDER BY lower(targets.name), lower(open_roles.title)`
       )
-      .all(...params, reportWindow, timestamp) as OpenRoleWithTarget[];
-  }
-
-  markRolesReported(roles: OpenRoleWithTarget[], reportWindow: string, reportedAt = nowIso()): void {
-    if (roles.length === 0) return;
-
-    const insert = this.db.prepare(
-      `INSERT OR IGNORE INTO role_report_history (target_id, role_key, report_window, reported_at)
-       VALUES (?, ?, ?, ?)`
-    );
-    const transaction = this.db.transaction((items: OpenRoleWithTarget[]) => {
-      for (const role of items) {
-        insert.run(role.target_id, openRoleKey(role), reportWindow, reportedAt);
-      }
-    });
-
-    transaction(roles);
+      .all(...params, timestamp) as OpenRoleWithTarget[];
   }
 
   getOpenRoleWithTarget(id: number): OpenRoleWithTarget | null {
