@@ -42,9 +42,8 @@ import {
 import { sendMessagesToConfiguredChannel } from "./send.js";
 
 interface PendingHideSelection {
-  sourceChannelId: string;
-  sourceMessageId: string;
-  roleNumbers: string[];
+  missingRoleNumbers: string[];
+  roles: OpenRoleWithTarget[];
   expiresAt: number;
 }
 
@@ -280,33 +279,14 @@ export class InteractionHandler {
         return;
       }
 
-      const sourceMessage = await fetchMessage(this.client, pending.sourceChannelId, pending.sourceMessageId);
-      if (!sourceMessage) {
-        await interaction.update({
-          content: "I could not find the original report message. Run `/run` and try again.",
-          components: []
-        });
-        return;
-      }
-
-      const selection = rolesFromMessageByNumbers(sourceMessage, this.repository, pending.roleNumbers);
-      if (selection.roles.length === 0) {
-        await interaction.update({
-          content: `I could not find any available roles for ${formatRoleNumbers(pending.roleNumbers)} in that report message.`,
-          components: []
-        });
-        return;
-      }
-
       const duration = parseHideDuration(interaction.values[0]);
-      const suppressedUntilValues = selection.roles.map((role) => this.repository.hideOpenRole(role, duration));
-      await removeRolesFromReportMessage(sourceMessage, selection.roles);
+      const suppressedUntilValues = pending.roles.map((role) => this.repository.hideOpenRole(role, duration));
       await interaction.update({
         content: hiddenRolesConfirmation(
-          selection.roles,
+          pending.roles,
           duration,
           suppressedUntilValues[0],
-          selection.missingRoleNumbers
+          pending.missingRoleNumbers
         ),
         components: []
       });
@@ -397,6 +377,15 @@ export class InteractionHandler {
     }
 
     if (kind === "hide_role_modal") {
+      const sourceMessage = await fetchMessage(this.client, first, second);
+      if (!sourceMessage) {
+        await interaction.reply({
+          content: "I could not find the original report message. Run `/run` and try again.",
+          flags: MessageFlags.Ephemeral
+        });
+        return;
+      }
+
       const roleNumbers = readRoleNumbers(interaction, "hide_role_number");
       if (!roleNumbers) {
         await interaction.reply({
@@ -406,7 +395,17 @@ export class InteractionHandler {
         return;
       }
 
-      const token = this.storePendingHideSelection(first, second, roleNumbers);
+      const selection = rolesFromMessageByNumbers(sourceMessage, this.repository, roleNumbers);
+      if (selection.roles.length === 0) {
+        await interaction.reply({
+          content: `I could not find any available roles for ${formatRoleNumbers(roleNumbers)} in that report message.`,
+          flags: MessageFlags.Ephemeral
+        });
+        return;
+      }
+
+      await removeRolesFromReportMessage(sourceMessage, selection.roles);
+      const token = this.storePendingHideSelection(selection.roles, selection.missingRoleNumbers);
       await interaction.reply({
         content: `Choose Hide Duration for ${formatRoleNumbers(roleNumbers)}.`,
         components: [buildHideDurationSelect(token)],
@@ -473,13 +472,12 @@ export class InteractionHandler {
     }
   }
 
-  private storePendingHideSelection(sourceChannelId: string, sourceMessageId: string, roleNumbers: string[]): string {
+  private storePendingHideSelection(roles: OpenRoleWithTarget[], missingRoleNumbers: string[]): string {
     this.deleteExpiredPendingHideSelections();
     const token = createInteractionToken();
     this.pendingHideSelections.set(token, {
-      sourceChannelId,
-      sourceMessageId,
-      roleNumbers,
+      missingRoleNumbers,
+      roles,
       expiresAt: Date.now() + 10 * 60 * 1000
     });
     return token;
