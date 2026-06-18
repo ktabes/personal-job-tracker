@@ -376,7 +376,7 @@ export class InteractionHandler {
         duration = parseHideDuration(interaction.fields.getTextInputValue("hide_duration").trim());
       } catch {
         await interaction.reply({
-          content: "Hide Duration must be `7`, `14`, or `30`.",
+          content: "Hide Duration (Days) must be `7`, `14`, or `30`.",
           flags: MessageFlags.Ephemeral
         });
         return;
@@ -555,7 +555,7 @@ function buildHideRoleModal(channelId: string, messageId: string): ModalBuilder 
       new ActionRowBuilder<TextInputBuilder>().addComponents(
         new TextInputBuilder()
           .setCustomId("hide_duration")
-          .setLabel("Hide Duration")
+          .setLabel("Hide Duration (Days)")
           .setPlaceholder("7, 14, or 30")
           .setStyle(TextInputStyle.Short)
           .setRequired(true)
