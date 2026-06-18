@@ -351,7 +351,7 @@ function toRoleMessage(
       new EmbedBuilder()
         .setTitle(`${bucketTitle} - Page ${page}`)
         .setDescription(lines.join("\n"))
-        .setFooter({ text: "Use Apply or Hide, then enter the role number in the popup." })
+        .setFooter({ text: "Use Apply or Hide, then enter role numbers in the popup." })
         .setColor(REPORT_COLOR)
     ],
     components: [

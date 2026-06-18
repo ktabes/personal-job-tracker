@@ -32,6 +32,7 @@ import {
   CHECK_TYPES,
   CLOSED_SUB_STATUSES,
   OUTREACH_STATUSES,
+  type ApplicationRow,
   type CheckType,
   type ClosedSubStatus,
   type KeywordKind,
@@ -311,28 +312,31 @@ export class InteractionHandler {
         return;
       }
 
-      const roleNumber = readRoleNumber(interaction, "apply_role_number");
-      if (!roleNumber) {
-        await interaction.reply({ content: "Role number must be a positive number.", flags: MessageFlags.Ephemeral });
-        return;
-      }
-
-      const role = roleFromMessageByNumber(sourceMessage, this.repository, roleNumber);
-      if (!role) {
+      const roleNumbers = readRoleNumbers(interaction, "apply_role_number");
+      if (!roleNumbers) {
         await interaction.reply({
-          content: `I could not find an available role #${roleNumber} in that report message.`,
+          content: "Enter role numbers like `1`, `1, 3, 5`, or `1-3`.",
           flags: MessageFlags.Ephemeral
         });
         return;
       }
 
-      const application = this.repository.createApplicationFromOpenRole(
-        role,
-        todayIsoDateInTimezone(config.reportTimezone)
+      const selection = rolesFromMessageByNumbers(sourceMessage, this.repository, roleNumbers);
+      if (selection.roles.length === 0) {
+        await interaction.reply({
+          content: `I could not find any available roles for ${formatRoleNumbers(roleNumbers)} in that report message.`,
+          flags: MessageFlags.Ephemeral
+        });
+        return;
+      }
+
+      const dateApplied = todayIsoDateInTimezone(config.reportTimezone);
+      const applications = selection.roles.map((role) =>
+        this.repository.createApplicationFromOpenRole(role, dateApplied)
       );
-      await removeRoleFromReportMessage(sourceMessage, role);
+      await removeRolesFromReportMessage(sourceMessage, selection.roles);
       await interaction.reply({
-        content: `Tracked application #${application.id}: ${application.company} - ${application.role_title}.`,
+        content: appliedRolesConfirmation(applications, selection.missingRoleNumbers),
         flags: MessageFlags.Ephemeral
       });
       return;
@@ -348,16 +352,19 @@ export class InteractionHandler {
         return;
       }
 
-      const roleNumber = readRoleNumber(interaction, "hide_role_number");
-      if (!roleNumber) {
-        await interaction.reply({ content: "Role number must be a positive number.", flags: MessageFlags.Ephemeral });
+      const roleNumbers = readRoleNumbers(interaction, "hide_role_number");
+      if (!roleNumbers) {
+        await interaction.reply({
+          content: "Enter role numbers like `1`, `1, 3, 5`, or `1-3`.",
+          flags: MessageFlags.Ephemeral
+        });
         return;
       }
 
-      const role = roleFromMessageByNumber(sourceMessage, this.repository, roleNumber);
-      if (!role) {
+      const selection = rolesFromMessageByNumbers(sourceMessage, this.repository, roleNumbers);
+      if (selection.roles.length === 0) {
         await interaction.reply({
-          content: `I could not find an available role #${roleNumber} in that report message.`,
+          content: `I could not find any available roles for ${formatRoleNumbers(roleNumbers)} in that report message.`,
           flags: MessageFlags.Ephemeral
         });
         return;
@@ -374,10 +381,15 @@ export class InteractionHandler {
         return;
       }
 
-      const suppressedUntil = this.repository.hideOpenRole(role, duration);
-      await removeRoleFromReportMessage(sourceMessage, role);
+      const suppressedUntilValues = selection.roles.map((role) => this.repository.hideOpenRole(role, duration));
+      await removeRolesFromReportMessage(sourceMessage, selection.roles);
       await interaction.reply({
-        content: hiddenRoleConfirmation(role, duration, suppressedUntil),
+        content: hiddenRolesConfirmation(
+          selection.roles,
+          duration,
+          suppressedUntilValues.find((value): value is string => value !== null) ?? null,
+          selection.missingRoleNumbers
+        ),
         flags: MessageFlags.Ephemeral
       });
       return;
@@ -475,18 +487,33 @@ function messageHasRoleLines(message: Message): boolean {
   return description.split("\n").some((line) => parseRoleLine(line));
 }
 
-function roleFromMessageByNumber(
+function rolesFromMessageByNumbers(
   message: Message,
   repository: JobTrackerRepository,
-  roleNumber: string
-): OpenRoleWithTarget | null {
+  roleNumbers: string[]
+): { roles: OpenRoleWithTarget[]; missingRoleNumbers: string[] } {
   const description = message.embeds[0]?.description ?? "";
+  const applyUrlByNumber = new Map<string, string>();
   for (const line of description.split("\n")) {
     const parsed = parseRoleLine(line);
-    if (!parsed || parsed.number !== roleNumber) continue;
-    return repository.getOpenRoleWithTargetByApplyUrl(parsed.applyUrl);
+    if (parsed) {
+      applyUrlByNumber.set(parsed.number, parsed.applyUrl);
+    }
   }
-  return null;
+
+  const roles: OpenRoleWithTarget[] = [];
+  const missingRoleNumbers: string[] = [];
+  for (const roleNumber of roleNumbers) {
+    const applyUrl = applyUrlByNumber.get(roleNumber);
+    const role = applyUrl ? repository.getOpenRoleWithTargetByApplyUrl(applyUrl) : null;
+    if (role) {
+      roles.push(role);
+    } else {
+      missingRoleNumbers.push(roleNumber);
+    }
+  }
+
+  return { roles, missingRoleNumbers };
 }
 
 function parseRoleLine(line: string): { number: string; applyUrl: string } | null {
@@ -503,8 +530,8 @@ function buildApplyRoleModal(channelId: string, messageId: string): ModalBuilder
       new ActionRowBuilder<TextInputBuilder>().addComponents(
         new TextInputBuilder()
           .setCustomId("apply_role_number")
-          .setLabel("Role number")
-          .setPlaceholder("Example: 3")
+          .setLabel("Role numbers")
+          .setPlaceholder("Example: 1, 3, 5-7")
           .setStyle(TextInputStyle.Short)
           .setRequired(true)
       )
@@ -519,8 +546,8 @@ function buildHideRoleModal(channelId: string, messageId: string): ModalBuilder 
       new ActionRowBuilder<TextInputBuilder>().addComponents(
         new TextInputBuilder()
           .setCustomId("hide_role_number")
-          .setLabel("Role number")
-          .setPlaceholder("Example: 3")
+          .setLabel("Role numbers")
+          .setPlaceholder("Example: 1, 3, 5-7")
           .setStyle(TextInputStyle.Short)
           .setRequired(true)
       ),
@@ -535,12 +562,41 @@ function buildHideRoleModal(channelId: string, messageId: string): ModalBuilder 
     );
 }
 
-function readRoleNumber(interaction: ModalSubmitInteraction, field: string): string | null {
-  const raw = interaction.fields.getTextInputValue(field).trim().replace(/^#/, "");
-  if (!/^\d+$/.test(raw)) return null;
-  const roleNumber = Number.parseInt(raw, 10);
-  if (!Number.isSafeInteger(roleNumber) || roleNumber <= 0) return null;
-  return String(roleNumber);
+function readRoleNumbers(interaction: ModalSubmitInteraction, field: string): string[] | null {
+  return parseRoleNumbers(interaction.fields.getTextInputValue(field));
+}
+
+function parseRoleNumbers(value: string): string[] | null {
+  const normalized = value.trim().replaceAll("#", "").replace(/\s*-\s*/g, "-");
+  if (!normalized) return null;
+
+  const roleNumbers = new Set<number>();
+  for (const token of normalized.split(/[\s,;]+/)) {
+    if (!token) continue;
+    const rangeMatch = token.match(/^(\d+)-(\d+)$/);
+    if (rangeMatch) {
+      const start = Number.parseInt(rangeMatch[1], 10);
+      const end = Number.parseInt(rangeMatch[2], 10);
+      if (!isValidRoleNumber(start) || !isValidRoleNumber(end) || end < start || end - start > 24) return null;
+      for (let number = start; number <= end; number += 1) {
+        roleNumbers.add(number);
+      }
+    } else if (/^\d+$/.test(token)) {
+      const number = Number.parseInt(token, 10);
+      if (!isValidRoleNumber(number)) return null;
+      roleNumbers.add(number);
+    } else {
+      return null;
+    }
+
+    if (roleNumbers.size > 25) return null;
+  }
+
+  return roleNumbers.size > 0 ? [...roleNumbers].map(String) : null;
+}
+
+function isValidRoleNumber(value: number): boolean {
+  return Number.isSafeInteger(value) && value > 0;
 }
 
 function parseHideDuration(value: string | undefined): RoleHideDurationDays {
@@ -550,14 +606,38 @@ function parseHideDuration(value: string | undefined): RoleHideDurationDays {
   throw new Error(`Invalid hide duration ${value}`);
 }
 
-function hiddenRoleConfirmation(
-  role: OpenRoleWithTarget,
+function appliedRolesConfirmation(applications: ApplicationRow[], missingRoleNumbers: string[]): string {
+  const lines = [`Tracked ${applications.length} application${applications.length === 1 ? "" : "s"}.`];
+  lines.push(...applications.slice(0, 5).map((application) => `- #${application.id}: ${application.company} - ${application.role_title}`));
+  if (applications.length > 5) {
+    lines.push(`- ...and ${applications.length - 5} more`);
+  }
+  if (missingRoleNumbers.length > 0) {
+    lines.push(`Skipped unavailable role number${missingRoleNumbers.length === 1 ? "" : "s"}: ${formatRoleNumbers(missingRoleNumbers)}.`);
+  }
+  return lines.join("\n");
+}
+
+function hiddenRolesConfirmation(
+  roles: OpenRoleWithTarget[],
   duration: RoleHideDurationDays,
-  suppressedUntil: string | null
+  suppressedUntil: string | null,
+  missingRoleNumbers: string[]
 ): string {
-  const prefix = `Hidden role: ${role.company} - ${role.title}.`;
-  if (duration === null) return `${prefix} It will not appear in future reports.`;
-  return `${prefix} It is hidden until ${suppressedUntil}.`;
+  const lines = [`Hidden ${roles.length} role${roles.length === 1 ? "" : "s"}.`];
+  lines.push(...roles.slice(0, 5).map((role) => `- ${role.company} - ${role.title}`));
+  if (roles.length > 5) {
+    lines.push(`- ...and ${roles.length - 5} more`);
+  }
+  lines.push(duration === null ? "They will not appear in future reports." : `They are hidden until ${suppressedUntil}.`);
+  if (missingRoleNumbers.length > 0) {
+    lines.push(`Skipped unavailable role number${missingRoleNumbers.length === 1 ? "" : "s"}: ${formatRoleNumbers(missingRoleNumbers)}.`);
+  }
+  return lines.join("\n");
+}
+
+function formatRoleNumbers(roleNumbers: string[]): string {
+  return roleNumbers.map((roleNumber) => `#${roleNumber}`).join(", ");
 }
 
 async function fetchMessage(client: Client, channelId: string | undefined, messageId: string | undefined): Promise<Message | null> {
@@ -567,10 +647,11 @@ async function fetchMessage(client: Client, channelId: string | undefined, messa
   return channel.messages.fetch(messageId).catch(() => null);
 }
 
-async function removeRoleFromReportMessage(message: Message, role: OpenRoleWithTarget): Promise<void> {
+async function removeRolesFromReportMessage(message: Message, roles: OpenRoleWithTarget[]): Promise<void> {
   const originalEmbed = message.embeds[0];
   const description = originalEmbed?.description ?? "";
-  const nextDescription = removeRoleLineByApplyUrl(description, role.apply_url);
+  const applyUrls = new Set(roles.map((role) => role.apply_url));
+  const nextDescription = removeRoleLinesByApplyUrl(description, applyUrls);
   const hasRoleLines = nextDescription.split("\n").some((line) => parseRoleLine(line));
   const embeds = originalEmbed
     ? [
@@ -588,10 +669,13 @@ async function removeRoleFromReportMessage(message: Message, role: OpenRoleWithT
     .catch(() => undefined);
 }
 
-function removeRoleLineByApplyUrl(description: string, applyUrl: string): string {
+function removeRoleLinesByApplyUrl(description: string, applyUrls: Set<string>): string {
   return description
     .split("\n")
-    .filter((line) => !line.includes(`](${applyUrl})`))
+    .filter((line) => {
+      const parsed = parseRoleLine(line);
+      return !parsed || !applyUrls.has(parsed.applyUrl);
+    })
     .join("\n");
 }
 
