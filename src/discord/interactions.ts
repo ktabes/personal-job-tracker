@@ -41,7 +41,16 @@ import {
 } from "../types.js";
 import { sendMessagesToConfiguredChannel } from "./send.js";
 
+interface PendingHideSelection {
+  sourceChannelId: string;
+  sourceMessageId: string;
+  roleNumbers: string[];
+  expiresAt: number;
+}
+
 export class InteractionHandler {
+  private readonly pendingHideSelections = new Map<string, PendingHideSelection>();
+
   constructor(
     private readonly client: Client,
     private readonly repository: JobTrackerRepository
@@ -254,19 +263,53 @@ export class InteractionHandler {
       return;
     }
 
-    await interaction.reply({
-      content: "Choose Hide Duration.",
-      components: [buildHideDurationSelect(interaction.channelId, interaction.message.id)],
-      flags: MessageFlags.Ephemeral
-    });
+    await interaction.showModal(buildHideRoleModal(interaction.channelId, interaction.message.id));
   }
 
   private async handleStringSelect(interaction: StringSelectMenuInteraction): Promise<void> {
-    const [action, idRaw, secondRaw] = interaction.customId.split(":");
+    const [action, idRaw] = interaction.customId.split(":");
 
     if (action === "hide_duration") {
+      const pending = this.pendingHideSelections.get(idRaw);
+      this.pendingHideSelections.delete(idRaw);
+      if (!pending || pending.expiresAt < Date.now()) {
+        await interaction.update({
+          content: "That hide selection expired. Click `Hide` and try again.",
+          components: []
+        });
+        return;
+      }
+
+      const sourceMessage = await fetchMessage(this.client, pending.sourceChannelId, pending.sourceMessageId);
+      if (!sourceMessage) {
+        await interaction.update({
+          content: "I could not find the original report message. Run `/run` and try again.",
+          components: []
+        });
+        return;
+      }
+
+      const selection = rolesFromMessageByNumbers(sourceMessage, this.repository, pending.roleNumbers);
+      if (selection.roles.length === 0) {
+        await interaction.update({
+          content: `I could not find any available roles for ${formatRoleNumbers(pending.roleNumbers)} in that report message.`,
+          components: []
+        });
+        return;
+      }
+
       const duration = parseHideDuration(interaction.values[0]);
-      await interaction.showModal(buildHideRoleModal(idRaw, secondRaw, duration));
+      const suppressedUntilValues = selection.roles.map((role) => this.repository.hideOpenRole(role, duration));
+      await removeRolesFromReportMessage(sourceMessage, selection.roles);
+      await interaction.update({
+        content: hiddenRolesConfirmation(
+          selection.roles,
+          duration,
+          suppressedUntilValues[0],
+          selection.missingRoleNumbers
+        ),
+        components: []
+      });
       return;
     }
 
@@ -354,15 +397,6 @@ export class InteractionHandler {
     }
 
     if (kind === "hide_role_modal") {
-      const sourceMessage = await fetchMessage(this.client, first, second);
-      if (!sourceMessage) {
-        await interaction.reply({
-          content: "I could not find the original report message. Run `/run` and try again.",
-          flags: MessageFlags.Ephemeral
-        });
-        return;
-      }
-
       const roleNumbers = readRoleNumbers(interaction, "hide_role_number");
       if (!roleNumbers) {
         await interaction.reply({
@@ -372,25 +406,10 @@ export class InteractionHandler {
         return;
       }
 
-      const selection = rolesFromMessageByNumbers(sourceMessage, this.repository, roleNumbers);
-      if (selection.roles.length === 0) {
-        await interaction.reply({
-          content: `I could not find any available roles for ${formatRoleNumbers(roleNumbers)} in that report message.`,
-          flags: MessageFlags.Ephemeral
-        });
-        return;
-      }
-
-      const duration = parseHideDuration(third);
-      const suppressedUntilValues = selection.roles.map((role) => this.repository.hideOpenRole(role, duration));
-      await removeRolesFromReportMessage(sourceMessage, selection.roles);
+      const token = this.storePendingHideSelection(first, second, roleNumbers);
       await interaction.reply({
-        content: hiddenRolesConfirmation(
-          selection.roles,
-          duration,
-          suppressedUntilValues.find((value): value is string => value !== null) ?? null,
-          selection.missingRoleNumbers
-        ),
+        content: `Choose Hide Duration for ${formatRoleNumbers(roleNumbers)}.`,
+        components: [buildHideDurationSelect(token)],
         flags: MessageFlags.Ephemeral
       });
       return;
@@ -450,6 +469,27 @@ export class InteractionHandler {
             : `No ${keywordKind} keyword matched: ${term.trim()}.`,
           flags: MessageFlags.Ephemeral
         });
+      }
+    }
+  }
+
+  private storePendingHideSelection(sourceChannelId: string, sourceMessageId: string, roleNumbers: string[]): string {
+    this.deleteExpiredPendingHideSelections();
+    const token = createInteractionToken();
+    this.pendingHideSelections.set(token, {
+      sourceChannelId,
+      sourceMessageId,
+      roleNumbers,
+      expiresAt: Date.now() + 10 * 60 * 1000
+    });
+    return token;
+  }
+
+  private deleteExpiredPendingHideSelections(): void {
+    const now = Date.now();
+    for (const [token, selection] of this.pendingHideSelections) {
+      if (selection.expiresAt < now) {
+        this.pendingHideSelections.delete(token);
       }
     }
   }
@@ -539,9 +579,9 @@ function buildApplyRoleModal(channelId: string, messageId: string): ModalBuilder
     );
 }
 
-function buildHideRoleModal(channelId: string, messageId: string, duration: RoleHideDurationDays): ModalBuilder {
+function buildHideRoleModal(channelId: string, messageId: string): ModalBuilder {
   return new ModalBuilder()
-    .setCustomId(`hide_role_modal:${channelId}:${messageId}:${duration ?? "forever"}`)
+    .setCustomId(`hide_role_modal:${channelId}:${messageId}`)
     .setTitle("Hide Role")
     .addComponents(
       new ActionRowBuilder<TextInputBuilder>().addComponents(
@@ -555,18 +595,15 @@ function buildHideRoleModal(channelId: string, messageId: string, duration: Role
     );
 }
 
-function buildHideDurationSelect(
-  channelId: string,
-  messageId: string
-): ActionRowBuilder<MessageActionRowComponentBuilder> {
+function buildHideDurationSelect(token: string): ActionRowBuilder<MessageActionRowComponentBuilder> {
   return new ActionRowBuilder<MessageActionRowComponentBuilder>().addComponents(
     new StringSelectMenuBuilder()
-      .setCustomId(`hide_duration:${channelId}:${messageId}`)
+      .setCustomId(`hide_duration:${token}`)
       .setPlaceholder("Hide Duration")
       .addOptions(
         { label: "7 Days", value: "7" },
-        { label: "30 Days", value: "30" },
-        { label: "Forever", value: "forever" }
+        { label: "14 Days", value: "14" },
+        { label: "30 Days", value: "30" }
       )
   );
 }
@@ -610,8 +647,8 @@ function isValidRoleNumber(value: number): boolean {
 
 function parseHideDuration(value: string | undefined): RoleHideDurationDays {
   if (value === "7") return 7;
+  if (value === "14") return 14;
   if (value === "30") return 30;
-  if (value === "forever") return null;
   throw new Error(`Invalid hide duration ${value}`);
 }
 
@@ -630,7 +667,7 @@ function appliedRolesConfirmation(applications: ApplicationRow[], missingRoleNum
 function hiddenRolesConfirmation(
   roles: OpenRoleWithTarget[],
   duration: RoleHideDurationDays,
-  suppressedUntil: string | null,
+  suppressedUntil: string,
   missingRoleNumbers: string[]
 ): string {
   const lines = [`Hidden ${roles.length} role${roles.length === 1 ? "" : "s"}.`];
@@ -638,7 +675,7 @@ function hiddenRolesConfirmation(
   if (roles.length > 5) {
     lines.push(`- ...and ${roles.length - 5} more`);
   }
-  lines.push(duration === null ? "They will not appear in future reports." : `They are hidden until ${suppressedUntil}.`);
+  lines.push(`They are hidden until ${suppressedUntil}.`);
   if (missingRoleNumbers.length > 0) {
     lines.push(`Skipped unavailable role number${missingRoleNumbers.length === 1 ? "" : "s"}: ${formatRoleNumbers(missingRoleNumbers)}.`);
   }
@@ -647,6 +684,10 @@ function hiddenRolesConfirmation(
 
 function formatRoleNumbers(roleNumbers: string[]): string {
   return roleNumbers.map((roleNumber) => `#${roleNumber}`).join(", ");
+}
+
+function createInteractionToken(): string {
+  return `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`;
 }
 
 async function fetchMessage(client: Client, channelId: string | undefined, messageId: string | undefined): Promise<Message | null> {

@@ -61,7 +61,7 @@ interface UpdateTargetOutreachInput {
   notes?: string | null;
 }
 
-export type RoleHideDurationDays = 7 | 30 | null;
+export type RoleHideDurationDays = 7 | 14 | 30;
 
 const ROLE_KEY_SQL =
   "CASE WHEN open_roles.external_id IS NOT NULL AND open_roles.external_id <> '' THEN 'external:' || open_roles.external_id ELSE 'url:' || open_roles.apply_url || ':title:' || open_roles.title END";
@@ -396,9 +396,9 @@ export class JobTrackerRepository {
     return { application, created: true };
   }
 
-  hideOpenRole(role: OpenRoleWithTarget, durationDays: RoleHideDurationDays): string | null {
+  hideOpenRole(role: OpenRoleWithTarget, durationDays: RoleHideDurationDays): string {
     const timestamp = nowIso();
-    const suppressedUntil = durationDays === null ? null : daysFromNowIso(durationDays);
+    const suppressedUntil = daysFromNowIso(durationDays);
 
     this.db
       .prepare(
