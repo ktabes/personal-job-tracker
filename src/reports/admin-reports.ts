@@ -6,9 +6,10 @@ import {
   type MessageCreateOptions
 } from "discord.js";
 import { statusLabel } from "../db/repositories.js";
-import type { KeywordRow, TargetRow, TargetWithOutreach } from "../types.js";
+import type { HiddenRoleRow, KeywordRow, TargetRow, TargetWithOutreach } from "../types.js";
 
 const MAX_TARGETS_MESSAGE_LENGTH = 1_850;
+const MAX_HIDDEN_ROLES_MESSAGE_LENGTH = 1_850;
 
 export function buildKeywordsReport(keywords: KeywordRow[]): MessageCreateOptions {
   const include = keywords.filter((keyword) => keyword.kind === "include").map((keyword) => keyword.term);
@@ -54,6 +55,33 @@ export function buildTargetsReport(targets: TargetReportRow[]): MessageCreateOpt
     if (lines.length > 1 && nextContent.length > MAX_TARGETS_MESSAGE_LENGTH) {
       pages.push({ content: lines.join("\n") });
       lines = ["**Targets**"];
+    }
+    lines.push(line);
+  }
+
+  if (lines.length > 1) {
+    pages.push({ content: lines.join("\n") });
+  }
+
+  return pages;
+}
+
+export function buildHiddenRolesReport(roles: HiddenRoleRow[]): MessageCreateOptions[] {
+  if (roles.length === 0) {
+    return [{ content: "**Hidden Roles**\nNo active hidden roles." }];
+  }
+
+  const pages: MessageCreateOptions[] = [];
+  let lines = ["**Hidden Roles**"];
+
+  for (const role of roles) {
+    const until = role.suppressed_until ? `hidden until ${role.suppressed_until}` : "hidden forever";
+    const link = role.apply_url ? ` - ${role.apply_url}` : "";
+    const line = `#${role.id} **${role.company}** - ${role.role_title}; ${until}${link}`;
+    const nextContent = [...lines, line].join("\n");
+    if (lines.length > 1 && nextContent.length > MAX_HIDDEN_ROLES_MESSAGE_LENGTH) {
+      pages.push({ content: lines.join("\n") });
+      lines = ["**Hidden Roles**"];
     }
     lines.push(line);
   }

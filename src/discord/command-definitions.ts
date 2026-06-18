@@ -47,6 +47,30 @@ export const commandDefinitions: RESTPostAPIChatInputApplicationCommandsJSONBody
     ),
   new SlashCommandBuilder().setName("keywords").setDescription("Show and edit include/exclude title keywords."),
   new SlashCommandBuilder()
+    .setName("hidden")
+    .setDescription("List or unhide suppressed roles.")
+    .addSubcommand((subcommand) =>
+      subcommand
+        .setName("list")
+        .setDescription("List active hidden roles.")
+        .addIntegerOption((option) =>
+          option
+            .setName("limit")
+            .setDescription("Maximum hidden roles to show.")
+            .setMinValue(1)
+            .setMaxValue(100)
+            .setRequired(false)
+        )
+    )
+    .addSubcommand((subcommand) =>
+      subcommand
+        .setName("unhide")
+        .setDescription("Unhide a role by hidden-role ID.")
+        .addIntegerOption((option) =>
+          option.setName("id").setDescription("Hidden role ID from /hidden list.").setMinValue(1).setRequired(true)
+        )
+    ),
+  new SlashCommandBuilder()
     .setName("targets")
     .setDescription("List, add, or disable monitored targets.")
     .addSubcommand((subcommand) => subcommand.setName("list").setDescription("List configured targets."))

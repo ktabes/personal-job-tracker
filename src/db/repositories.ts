@@ -9,6 +9,7 @@ import type {
   ClosedSubStatus,
   KeywordKind,
   KeywordRow,
+  HiddenRoleRow,
   NewOpenRole,
   OpenRoleRow,
   OpenRoleWithTarget,
@@ -423,6 +424,29 @@ export class JobTrackerRepository {
 
     this.deleteOpenRole(role.id);
     return suppressedUntil;
+  }
+
+  listHiddenRoles(limit = 25, includeExpired = false): HiddenRoleRow[] {
+    const normalizedLimit = Math.max(1, Math.min(limit, 100));
+    const timestamp = nowIso();
+    const where = includeExpired ? "" : "WHERE suppressed_until IS NULL OR suppressed_until > ?";
+    const params = includeExpired ? [normalizedLimit] : [timestamp, normalizedLimit];
+    return this.db
+      .prepare(
+        `SELECT *
+         FROM hidden_roles
+         ${where}
+         ORDER BY COALESCE(suppressed_until, '9999-12-31T23:59:59.999Z') DESC, updated_at DESC, id DESC
+         LIMIT ?`
+      )
+      .all(...params) as HiddenRoleRow[];
+  }
+
+  unhideRole(id: number): HiddenRoleRow | null {
+    const role = this.db.prepare("SELECT * FROM hidden_roles WHERE id = ?").get(id) as HiddenRoleRow | undefined;
+    if (!role) return null;
+    this.db.prepare("DELETE FROM hidden_roles WHERE id = ?").run(id);
+    return role;
   }
 
   private markRoleApplied(role: OpenRoleWithTarget, applicationId: number): void {

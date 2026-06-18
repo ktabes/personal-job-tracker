@@ -23,7 +23,7 @@ import {
 } from "discord.js";
 import { config } from "../config.js";
 import type { JobTrackerRepository, RoleHideDurationDays } from "../db/repositories.js";
-import { buildKeywordsReport, buildTargetsReport } from "../reports/admin-reports.js";
+import { buildHiddenRolesReport, buildKeywordsReport, buildTargetsReport } from "../reports/admin-reports.js";
 import { buildActiveApplicationsDigest, buildClosedApplicationsHistory } from "../reports/applications-report.js";
 import { buildOpenRolesReport, type OpenRolesReportMode } from "../reports/open-roles-report.js";
 import { scanTargets } from "../scraper/scanner.js";
@@ -89,6 +89,9 @@ export class InteractionHandler {
         return;
       case "keywords":
         await interaction.reply({ ...buildKeywordsReport(this.repository.listKeywords()), flags: MessageFlags.Ephemeral });
+        return;
+      case "hidden":
+        await this.handleHiddenCommand(interaction);
         return;
       case "targets":
         await this.handleTargetsCommand(interaction);
@@ -171,6 +174,27 @@ export class InteractionHandler {
       const target = this.repository.addTarget({ name, checkType, boardSlug, careersUrl, category, locationFilter });
       await interaction.reply({
         content: `Added target #${target.id}: ${target.name} (${target.check_type}).`,
+        flags: MessageFlags.Ephemeral
+      });
+    }
+  }
+
+  private async handleHiddenCommand(interaction: ChatInputCommandInteraction): Promise<void> {
+    const subcommand = interaction.options.getSubcommand();
+    if (subcommand === "list") {
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+      const limit = interaction.options.getInteger("limit") ?? 25;
+      await replyWithMessages(interaction, buildHiddenRolesReport(this.repository.listHiddenRoles(limit)));
+      return;
+    }
+
+    if (subcommand === "unhide") {
+      const id = interaction.options.getInteger("id", true);
+      const role = this.repository.unhideRole(id);
+      await interaction.reply({
+        content: role
+          ? `Unhid #${role.id}: ${role.company} - ${role.role_title}. It can reappear after the next scan if it is still open.`
+          : `No hidden role found for #${id}.`,
         flags: MessageFlags.Ephemeral
       });
     }

@@ -68,6 +68,8 @@ The service also registers slash commands on startup, so `npm run commands:regis
 - `/application add` - manually track an application from a role found outside the scan.
 - `/history limit:<N>` - show recent closed applications.
 - `/keywords` - show include/exclude terms and open add/remove modals.
+- `/hidden list` - show currently hidden roles and their hidden-role IDs.
+- `/hidden unhide id:<id>` - remove a hidden-role suppression. The role can reappear after the next scan if it is still open.
 - `/targets list` - list targets with last-check status.
 - `/targets add` - add a target.
 - `/targets disable id:<id>` - disable a target without deleting it.

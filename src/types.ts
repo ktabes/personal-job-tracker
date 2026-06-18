@@ -76,6 +76,18 @@ export interface OpenRoleWithTarget extends OpenRoleRow {
   target_check_status: CheckStatus | null;
 }
 
+export interface HiddenRoleRow {
+  id: number;
+  target_id: number;
+  role_key: string;
+  company: string;
+  role_title: string;
+  apply_url: string | null;
+  suppressed_until: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface NewOpenRole {
   target_id: number;
   external_id: string | null;
