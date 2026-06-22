@@ -13,13 +13,11 @@ import {
   type Message,
   MessageFlags,
   ModalBuilder,
-  StringSelectMenuBuilder,
   TextInputBuilder,
   TextInputStyle,
   type MessageActionRowComponentBuilder,
   type MessageCreateOptions,
-  type ModalSubmitInteraction,
-  type StringSelectMenuInteraction
+  type ModalSubmitInteraction
 } from "discord.js";
 import { config } from "../config.js";
 import type { JobTrackerRepository, RoleHideDurationDays } from "../db/repositories.js";
@@ -55,11 +53,6 @@ export class InteractionHandler {
 
     if (interaction.isButton()) {
       await this.handleButton(interaction.customId, interaction);
-      return;
-    }
-
-    if (interaction.isStringSelectMenu()) {
-      await this.handleStringSelect(interaction);
       return;
     }
 
@@ -245,12 +238,8 @@ export class InteractionHandler {
     }
 
     if (action === "close") {
-      const applicationId = parseIntegerId(idRaw);
-      await interaction.reply({
-        content: `Choose a close status for application #${applicationId}.`,
-        components: [buildCloseStatusSelect(applicationId)],
-        flags: MessageFlags.Ephemeral
-      });
+      const application = this.repository.getApplication(parseIntegerId(idRaw));
+      await interaction.showModal(buildCloseModal(application.id));
       return;
     }
 
@@ -279,16 +268,6 @@ export class InteractionHandler {
     }
 
     await interaction.showModal(buildHideRoleModal(interaction.channelId, interaction.message.id));
-  }
-
-  private async handleStringSelect(interaction: StringSelectMenuInteraction): Promise<void> {
-    const [action, idRaw] = interaction.customId.split(":");
-
-    if (action !== "close_status") return;
-
-    const applicationId = parseIntegerId(idRaw);
-    const subStatus = parseClosedSubStatus(interaction.values[0]);
-    await interaction.showModal(buildCloseModal(applicationId, subStatus));
   }
 
   private async handleModal(interaction: ModalSubmitInteraction): Promise<void> {
@@ -435,7 +414,16 @@ export class InteractionHandler {
 
     if (kind === "close_modal") {
       const applicationId = parseIntegerId(first);
-      const subStatus = parseClosedSubStatus(second);
+      let subStatus: ClosedSubStatus;
+      try {
+        subStatus = parseClosedSubStatus(interaction.fields.getTextInputValue("close_status").trim().toLowerCase());
+      } catch {
+        await interaction.reply({
+          content: "Close Status must be `rejected`, `offer`, `withdrawn`, or `ghosted`.",
+          flags: MessageFlags.Ephemeral
+        });
+        return;
+      }
       const decisionDate = interaction.fields.getTextInputValue("close_decision_date").trim();
       if (!isIsoDate(decisionDate)) {
         await interaction.reply({
@@ -816,25 +804,19 @@ function buildUpdateModal(applicationId: number): ModalBuilder {
     );
 }
 
-function buildCloseStatusSelect(applicationId: number): ActionRowBuilder<MessageActionRowComponentBuilder> {
-  return new ActionRowBuilder<MessageActionRowComponentBuilder>().addComponents(
-    new StringSelectMenuBuilder()
-      .setCustomId(`close_status:${applicationId}`)
-      .setPlaceholder("Closed sub-status")
-      .addOptions(
-        { label: "Rejected", value: "rejected" },
-        { label: "Offer", value: "offer" },
-        { label: "Withdrawn", value: "withdrawn" },
-        { label: "Ghosted", value: "ghosted" }
-      )
-  );
-}
-
-function buildCloseModal(applicationId: number, subStatus: ClosedSubStatus): ModalBuilder {
+function buildCloseModal(applicationId: number): ModalBuilder {
   return new ModalBuilder()
-    .setCustomId(`close_modal:${applicationId}:${subStatus}`)
+    .setCustomId(`close_modal:${applicationId}`)
     .setTitle(`Close application #${applicationId}`)
     .addComponents(
+      new ActionRowBuilder<TextInputBuilder>().addComponents(
+        new TextInputBuilder()
+          .setCustomId("close_status")
+          .setLabel("Close Status")
+          .setPlaceholder("rejected, offer, withdrawn, or ghosted")
+          .setStyle(TextInputStyle.Short)
+          .setRequired(true)
+      ),
       new ActionRowBuilder<TextInputBuilder>().addComponents(
         new TextInputBuilder()
           .setCustomId("close_decision_date")

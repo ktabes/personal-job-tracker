@@ -64,7 +64,7 @@ The service also registers slash commands on startup, so `npm run commands:regis
 - `/run mode:high` - post only high-level/senior roles.
 - `/run mode:all` - post every matching role, including senior/leadership roles.
 - `/run category:<category>` - scan only one category, such as `crypto-data`, `crypto-markets`, `data-platforms`, or `melbourne-data`.
-- `/applications` - show active applications with Update and Close controls.
+- `/applications` - show active applications with Update and Close controls. Both open popup modals; Close uses a typed `Close Status`.
 - `/application add` - manually track an application from a role found outside the scan.
 - `/history limit:<N>` - show recent closed applications.
 - `/keywords` - show include/exclude terms and open add/remove modals.
