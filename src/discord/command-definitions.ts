@@ -69,6 +69,14 @@ export const commandDefinitions: RESTPostAPIChatInputApplicationCommandsJSONBody
         .addIntegerOption((option) =>
           option.setName("id").setDescription("Hidden role ID from /hidden list.").setMinValue(1).setRequired(true)
         )
+    )
+    .addSubcommand((subcommand) =>
+      subcommand
+        .setName("unhide_target")
+        .setDescription("Unhide a manual target by hidden-target ID.")
+        .addIntegerOption((option) =>
+          option.setName("id").setDescription("Hidden target ID from /hidden list.").setMinValue(1).setRequired(true)
+        )
     ),
   new SlashCommandBuilder()
     .setName("targets")

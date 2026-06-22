@@ -6,6 +6,7 @@ export const CHECK_TYPES = [
   "ats_recruitee",
   "ats_smartrecruiters",
   "ats_personio",
+  "ats_workday",
   "html",
   "manual"
 ] as const;
@@ -83,6 +84,16 @@ export interface HiddenRoleRow {
   company: string;
   role_title: string;
   apply_url: string | null;
+  suppressed_until: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface HiddenTargetRow {
+  id: number;
+  target_id: number;
+  target_name: string;
+  careers_url: string | null;
   suppressed_until: string | null;
   created_at: string;
   updated_at: string;

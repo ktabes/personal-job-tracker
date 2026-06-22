@@ -63,13 +63,14 @@ The service also registers slash commands on startup, so `npm run commands:regis
 - `/run mode:mid` - post only mid-level roles.
 - `/run mode:high` - post only high-level/senior roles.
 - `/run mode:all` - post every matching role, including senior/leadership roles.
-- `/run category:<category>` - scan only one category, such as `crypto-data`, `crypto-markets`, `data-platforms`, or `melbourne-data`.
+- `/run category:<category>` - scan only one category, such as `crypto-data`, `crypto-markets`, `crypto-infra`, `crypto-protocols`, `data-platforms`, `data-vendors`, `ai-data`, `fintech-data`, `fintech-risk`, `trading-data`, or `melbourne-data`.
 - `/applications` - show active applications with Update and Close controls. Both open popup modals; Close uses a typed `Close Status`.
 - `/application add` - manually track an application from a role found outside the scan.
 - `/history limit:<N>` - show recent closed applications.
 - `/keywords` - show include/exclude terms and open add/remove modals.
 - `/hidden list` - show currently hidden roles and their hidden-role IDs.
 - `/hidden unhide id:<id>` - remove a hidden-role suppression. The role can reappear after the next scan if it is still open.
+- `/hidden unhide_target id:<id>` - remove a hidden manual-target suppression. The target can reappear in the next report.
 - `/targets list` - list targets with last-check status.
 - `/targets add` - add a target.
 - `/targets disable id:<id>` - disable a target without deleting it.
@@ -88,6 +89,7 @@ Examples:
 /targets add name:"Example Recruitee" check_type:ats_recruitee board_slug:"exampleco" careers_url:"https://exampleco.recruitee.com/"
 /targets add name:"Example SmartRecruiters" check_type:ats_smartrecruiters board_slug:"ExampleCo" careers_url:"https://jobs.smartrecruiters.com/ExampleCo"
 /targets add name:"Example Personio" check_type:ats_personio board_slug:"exampleco" careers_url:"https://exampleco.jobs.personio.de/xml?language=en"
+/targets add name:"Example Workday" check_type:ats_workday board_slug:"https://example.wd1.myworkdayjobs.com/wday/cxs/example/Example/jobs" careers_url:"https://example.wd1.myworkdayjobs.com/en-US/Example"
 /targets add name:"Melbourne Example" check_type:ats_lever board_slug:"exampleco" careers_url:"https://jobs.lever.co/exampleco" category:"melbourne-data" location_filter:"melbourne, victoria, vic, remote australia"
 /targets add name:"Manual Flow" check_type:manual careers_url:"mailto:careers@example.com"
 ```
@@ -101,6 +103,7 @@ How to find common ATS slugs:
 - Recruitee: look for `{slug}.recruitee.com`.
 - SmartRecruiters: look for `jobs.smartrecruiters.com/{companyIdentifier}`.
 - Personio: look for `{slug}.jobs.personio.de/xml`.
+- Workday: use the public CXS jobs endpoint as `board_slug`, usually shaped like `https://{host}/wday/cxs/{tenant}/{site}/jobs`, and use the matching human careers URL as `careers_url`.
 
 Use `location_filter` when a target should only show matching roles in certain locations. It is a comma-separated, case-insensitive substring filter applied to the parsed job location after title keyword matching. A Melbourne-focused target can use `melbourne, victoria, vic, remote australia`.
 
@@ -115,6 +118,8 @@ data/targets/crypto-data-api-verified-2026-06-16.json
 data/targets/crypto-data-manual-2026-06-16.json
 data/targets/expanded-watchlist-2026-06-17.json
 data/targets/melbourne-data-2026-06-17.json
+data/targets/cv-fit-expansion-2026-06-22.json
+data/targets/wide-net-expansion-2026-06-22.json
 ```
 
 The API seed contains the 57 API-verified Greenhouse, Ashby, and Lever rows. Aave is included as `ats_lever`; the fetcher detects `jobs.eu.lever.co` and uses Lever's EU API host for that target.
@@ -124,6 +129,10 @@ The manual seed contains the 33 manual/API-failed targets. These are imported as
 The expanded watchlist adds 36 curated targets using Workable, Recruitee, SmartRecruiters, and Personio. It intentionally avoids very broad/noisy boards by default. If you want those, add them manually with a category and use `/run category:<category>`.
 
 The Melbourne watchlist adds API-verified Melbourne/Victoria-focused targets using a `location_filter`, so broad boards only report jobs whose parsed location lines up with Melbourne, Victoria, VIC, or remote-Australia wording. Use `/run category:melbourne-data` to run that lane on demand.
+
+The CV-fit expansion adds 67 API-verified targets selected from the 2026-06-22 Fireblocks application CV and the 2026-06-17 general CV. It is weighted toward lower-level and mid-level data/analytics paths that line up with HypurrFind and HypurrFi experience: data engineering, analytics engineering, data quality, protocol/on-chain analytics, fintech risk/fraud/compliance analytics, AI data tooling, and SQL-heavy operations or strategy analyst roles. Unsupported boards that did not verify through a supported ATS were left out instead of being added as guessed scrape targets. This seed includes some large boards, so use category runs like `/run category:fintech-risk`, `/run category:fintech-data`, `/run category:data-platforms`, and `/run category:ai-data` while tuning keywords and hidden roles.
+
+The wide-net expansion adds another 107 targets: 76 API-backed targets and 31 manual-only targets. It casts a wider but still CV-relevant net across AI data tooling, fintech risk/fraud, data vendors, trading firms, crypto infra/protocols, and Melbourne/Australia companies. Manual-only rows are included only when a public supported ATS endpoint was not available or reliable.
 
 Import the seed into the configured SQLite database:
 
@@ -144,6 +153,8 @@ Within each low/mid/high level section, role messages are grouped by continent f
 Clicking `Apply` copies the role into `applications`, removes that live role from `open_roles`, records the role identity in `applied_roles`, and regenerates the CSV. That applied role is excluded from future reports even if the company keeps the posting open.
 
 Each role report message has one `Apply` control and one `Hide` control. `Apply` opens a popup modal where you enter role numbers shown in the report, such as `1, 3, 5-7`. `Hide` opens a `Hide Role` popup with `Role Numbers` and `Hide Duration (Days)`; type `7`, `14`, or `30` for the duration. Submitting it removes those role lines from the message without renumbering the remaining roles. Hidden roles are excluded from future reports until their suppression expires.
+
+Manual-only report messages have a `Hide Manual` control. It opens a popup with `Manual Target Numbers` and `Hide Duration (Days)`; type `7`, `14`, or `30`. Submitting it removes those manual target lines from the message without renumbering and suppresses those manual targets from future reports until expiration. Use `/hidden list` and `/hidden unhide_target id:<id>` to recover a hidden manual target.
 
 Use `/application add` for jobs found outside the bot's scan. It opens a modal for company, role title, apply URL, date applied, and notes. The resulting row is a normal active application, so it appears in `/applications`, can be updated or closed, and is exported to the CSV.
 
@@ -166,7 +177,30 @@ Statuses are `not_started`, `researching`, `contacted`, `applied`, and `paused`.
 Seeded include terms:
 
 ```text
-data engineer, analytics engineer, data analyst, data scientist, business intelligence, bi engineer, analytics, machine learning engineer, ml engineer, data infrastructure, analyst, product analyst, business analyst, operations analyst, strategy analyst, risk analyst, research analyst, growth analyst, financial analyst, reporting analyst, insights analyst, customer insights, data operations, data quality, business operations, strategy & operations, strategy and operations, growth associate, operations associate, research associate, data associate
+data engineer, analytics engineer, data analyst, data scientist, business intelligence, bi engineer,
+analytics, machine learning engineer, ml engineer, data infrastructure, analyst, product analyst,
+business analyst, operations analyst, strategy analyst, risk analyst, research analyst, growth analyst,
+financial analyst, reporting analyst, insights analyst, customer insights, data operations, data quality,
+business operations, strategy & operations, strategy and operations, growth associate, operations associate,
+research associate, data associate, fraud analyst, fraud operations, risk operations, aml analyst,
+kyc analyst, financial crime, financial crimes, transaction monitoring, trust and safety,
+compliance analyst, compliance operations, sanctions analyst, market intelligence, data platform,
+data product, analytics consultant, data consultant, implementation analyst, solutions analyst,
+revenue operations, gtm operations, business systems analyst, treasury analyst, quantitative analyst,
+quant analyst, product operations, growth operations, research operations, data specialist,
+customer support, customer success, customer experience, customer activation, customer operations,
+client success, client operations, support specialist, technical support, support analyst,
+integrations expert, implementation, onboarding, solutions consultant, solution consultant,
+solutions engineer, solution engineer, solutions delivery, solutions integration, fraud, risk associate,
+risk specialist, product risk, compliance associate, compliance specialist, compliance testing, sanctions,
+aml, kyc, trust & safety, threat intelligence, blockchain intelligence, protective intelligence,
+strategic intelligence, ai operations, data labeling, data annotation, annotation, model evaluation,
+ai evaluation, search evaluation, data curation, data curator, data governance, data reliability,
+data cloud, data steward, data management, data manager, data analytics, finance & strategy,
+finance and strategy, strategic finance, finance operations, financial operations, billing operations,
+payment operations, payments operations, clearing operations, treasury operations, regulatory reporting,
+business development rep, technical program manager, intelligence analyst, reporting specialist,
+pricing analyst, pricing operations, revenue analyst
 ```
 
 Seeded exclude terms:

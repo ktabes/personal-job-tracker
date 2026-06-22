@@ -73,7 +73,8 @@ function validateSeed(item: unknown, index: number): TargetSeed {
       "ats_lever",
       "ats_workable",
       "ats_recruitee",
-      "ats_smartrecruiters"
+      "ats_smartrecruiters",
+      "ats_workday"
     ].includes(checkType) &&
     !boardSlug
   ) {

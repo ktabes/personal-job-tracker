@@ -6,7 +6,7 @@ import {
   type MessageCreateOptions
 } from "discord.js";
 import { statusLabel } from "../db/repositories.js";
-import type { HiddenRoleRow, KeywordRow, TargetRow, TargetWithOutreach } from "../types.js";
+import type { HiddenRoleRow, HiddenTargetRow, KeywordRow, TargetRow, TargetWithOutreach } from "../types.js";
 
 const MAX_TARGETS_MESSAGE_LENGTH = 1_850;
 const MAX_HIDDEN_ROLES_MESSAGE_LENGTH = 1_850;
@@ -84,6 +84,51 @@ export function buildHiddenRolesReport(roles: HiddenRoleRow[]): MessageCreateOpt
       lines = ["**Hidden Roles**"];
     }
     lines.push(line);
+  }
+
+  if (lines.length > 1) {
+    pages.push({ content: lines.join("\n") });
+  }
+
+  return pages;
+}
+
+export function buildHiddenReport(roles: HiddenRoleRow[], targets: HiddenTargetRow[]): MessageCreateOptions[] {
+  if (roles.length === 0 && targets.length === 0) {
+    return [{ content: "**Hidden Items**\nNo active hidden roles or manual targets." }];
+  }
+
+  const pages: MessageCreateOptions[] = [];
+  let lines = ["**Hidden Items**"];
+
+  if (roles.length > 0) {
+    lines.push("", "__Roles__");
+    for (const role of roles) {
+      const until = role.suppressed_until ? `hidden until ${role.suppressed_until}` : "hidden forever";
+      const link = role.apply_url ? ` - ${role.apply_url}` : "";
+      const line = `Role #${role.id} **${role.company}** - ${role.role_title}; ${until}${link}`;
+      const nextContent = [...lines, line].join("\n");
+      if (lines.length > 1 && nextContent.length > MAX_HIDDEN_ROLES_MESSAGE_LENGTH) {
+        pages.push({ content: lines.join("\n") });
+        lines = ["**Hidden Items**", "__Roles__"];
+      }
+      lines.push(line);
+    }
+  }
+
+  if (targets.length > 0) {
+    lines.push("", "__Manual Targets__");
+    for (const target of targets) {
+      const until = target.suppressed_until ? `hidden until ${target.suppressed_until}` : "hidden forever";
+      const link = target.careers_url ? ` - ${target.careers_url}` : "";
+      const line = `Target #${target.id} **${target.target_name}**; ${until}${link}`;
+      const nextContent = [...lines, line].join("\n");
+      if (lines.length > 1 && nextContent.length > MAX_HIDDEN_ROLES_MESSAGE_LENGTH) {
+        pages.push({ content: lines.join("\n") });
+        lines = ["**Hidden Items**", "__Manual Targets__"];
+      }
+      lines.push(line);
+    }
   }
 
   if (lines.length > 1) {

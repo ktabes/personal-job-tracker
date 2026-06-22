@@ -105,6 +105,18 @@ const examples: TargetRow[] = [
     last_check_status: null,
     last_checked_at: null,
     active: 1
+  },
+  {
+    id: 9,
+    name: "Example Workday",
+    check_type: "ats_workday",
+    board_slug: "https://circle.wd1.myworkdayjobs.com/wday/cxs/circle/Circle/jobs",
+    careers_url: "https://circle.wd1.myworkdayjobs.com/en-US/Circle",
+    category: "smoke",
+    location_filter: null,
+    last_check_status: null,
+    last_checked_at: null,
+    active: 1
   }
 ];
 

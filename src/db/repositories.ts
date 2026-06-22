@@ -10,6 +10,7 @@ import type {
   KeywordKind,
   KeywordRow,
   HiddenRoleRow,
+  HiddenTargetRow,
   NewOpenRole,
   OpenRoleRow,
   OpenRoleWithTarget,
@@ -77,6 +78,22 @@ export class JobTrackerRepository {
       .all(...params) as TargetRow[];
   }
 
+  listTargetsForScan(category: string | null = null): TargetRow[] {
+    const { where, params } = targetWhereClause(false, category);
+    const timestamp = nowIso();
+    const hiddenFilter = `
+      AND NOT EXISTS (
+        SELECT 1
+        FROM hidden_targets
+        WHERE hidden_targets.target_id = targets.id
+          AND (hidden_targets.suppressed_until IS NULL OR hidden_targets.suppressed_until > ?)
+      )`;
+    const sqlWhere = where ? `${where}${hiddenFilter}` : ` WHERE 1 = 1${hiddenFilter}`;
+    return this.db
+      .prepare(`SELECT * FROM targets${sqlWhere} ORDER BY active DESC, lower(name)`)
+      .all(...params, timestamp) as TargetRow[];
+  }
+
   listTargetsWithOutreach(includeInactive = false, category: string | null = null): TargetWithOutreach[] {
     const { where, params } = targetWhereClause(includeInactive, category);
     return this.db
@@ -127,6 +144,23 @@ export class JobTrackerRepository {
     const row = this.db.prepare("SELECT * FROM targets WHERE id = ?").get(id) as TargetRow | undefined;
     if (!row) throw new Error(`Target ${id} not found`);
     return row;
+  }
+
+  getManualTargetByNameAndCareersUrl(name: string, careersUrl: string): TargetRow | null {
+    return (
+      (this.db
+        .prepare(
+          `SELECT *
+           FROM targets
+           WHERE check_type = 'manual'
+             AND active = 1
+             AND lower(name) = lower(?)
+             AND COALESCE(careers_url, '') = ?
+           ORDER BY id
+           LIMIT 1`
+        )
+        .get(name, careersUrl) as TargetRow | undefined) ?? null
+    );
   }
 
   getTargetOutreach(targetId: number): TargetOutreachRow | null {
@@ -426,6 +460,31 @@ export class JobTrackerRepository {
     return suppressedUntil;
   }
 
+  hideTarget(target: TargetRow, durationDays: RoleHideDurationDays): string {
+    const timestamp = nowIso();
+    const suppressedUntil = daysFromNowIso(durationDays);
+
+    this.db
+      .prepare(
+        `INSERT INTO hidden_targets (
+          target_id,
+          target_name,
+          careers_url,
+          suppressed_until,
+          created_at,
+          updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?)
+        ON CONFLICT(target_id) DO UPDATE SET
+          target_name = excluded.target_name,
+          careers_url = excluded.careers_url,
+          suppressed_until = excluded.suppressed_until,
+          updated_at = excluded.updated_at`
+      )
+      .run(target.id, target.name, target.careers_url, suppressedUntil, timestamp, timestamp);
+
+    return suppressedUntil;
+  }
+
   listHiddenRoles(limit = 25, includeExpired = false): HiddenRoleRow[] {
     const normalizedLimit = Math.max(1, Math.min(limit, 100));
     const timestamp = nowIso();
@@ -442,11 +501,34 @@ export class JobTrackerRepository {
       .all(...params) as HiddenRoleRow[];
   }
 
+  listHiddenTargets(limit = 25, includeExpired = false): HiddenTargetRow[] {
+    const normalizedLimit = Math.max(1, Math.min(limit, 100));
+    const timestamp = nowIso();
+    const where = includeExpired ? "" : "WHERE suppressed_until IS NULL OR suppressed_until > ?";
+    const params = includeExpired ? [normalizedLimit] : [timestamp, normalizedLimit];
+    return this.db
+      .prepare(
+        `SELECT *
+         FROM hidden_targets
+         ${where}
+         ORDER BY COALESCE(suppressed_until, '9999-12-31T23:59:59.999Z') DESC, updated_at DESC, id DESC
+         LIMIT ?`
+      )
+      .all(...params) as HiddenTargetRow[];
+  }
+
   unhideRole(id: number): HiddenRoleRow | null {
     const role = this.db.prepare("SELECT * FROM hidden_roles WHERE id = ?").get(id) as HiddenRoleRow | undefined;
     if (!role) return null;
     this.db.prepare("DELETE FROM hidden_roles WHERE id = ?").run(id);
     return role;
+  }
+
+  unhideTarget(id: number): HiddenTargetRow | null {
+    const target = this.db.prepare("SELECT * FROM hidden_targets WHERE id = ?").get(id) as HiddenTargetRow | undefined;
+    if (!target) return null;
+    this.db.prepare("DELETE FROM hidden_targets WHERE id = ?").run(id);
+    return target;
   }
 
   private markRoleApplied(role: OpenRoleWithTarget, applicationId: number): void {

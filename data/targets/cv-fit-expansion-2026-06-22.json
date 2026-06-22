@@ -1,0 +1,672 @@
+[
+  {
+    "name": "Stripe",
+    "check_type": "ats_greenhouse",
+    "board_slug": "stripe",
+    "careers_url": "https://boards.greenhouse.io/stripe",
+    "category": "fintech-data",
+    "location_filter": null,
+    "source_ats": "greenhouse",
+    "source_endpoint": "https://boards-api.greenhouse.io/v1/boards/stripe/jobs"
+  },
+  {
+    "name": "Adyen",
+    "check_type": "ats_greenhouse",
+    "board_slug": "adyen",
+    "careers_url": "https://boards.greenhouse.io/adyen",
+    "category": "fintech-risk",
+    "location_filter": null,
+    "source_ats": "greenhouse",
+    "source_endpoint": "https://boards-api.greenhouse.io/v1/boards/adyen/jobs"
+  },
+  {
+    "name": "Snowflake",
+    "check_type": "ats_ashby",
+    "board_slug": "snowflake",
+    "careers_url": "https://jobs.ashbyhq.com/snowflake",
+    "category": "data-platforms",
+    "location_filter": null,
+    "source_ats": "ashby",
+    "source_endpoint": "https://api.ashbyhq.com/posting-api/job-board/snowflake"
+  },
+  {
+    "name": "Nubank",
+    "check_type": "ats_greenhouse",
+    "board_slug": "nubank",
+    "careers_url": "https://boards.greenhouse.io/nubank",
+    "category": "fintech-data",
+    "location_filter": null,
+    "source_ats": "greenhouse",
+    "source_endpoint": "https://boards-api.greenhouse.io/v1/boards/nubank/jobs"
+  },
+  {
+    "name": "SoFi",
+    "check_type": "ats_greenhouse",
+    "board_slug": "sofi",
+    "careers_url": "https://boards.greenhouse.io/sofi",
+    "category": "fintech-data",
+    "location_filter": null,
+    "source_ats": "greenhouse",
+    "source_endpoint": "https://boards-api.greenhouse.io/v1/boards/sofi/jobs"
+  },
+  {
+    "name": "Alpaca",
+    "check_type": "ats_greenhouse",
+    "board_slug": "alpaca",
+    "careers_url": "https://boards.greenhouse.io/alpaca",
+    "category": "fintech-data",
+    "location_filter": null,
+    "source_ats": "greenhouse",
+    "source_endpoint": "https://boards-api.greenhouse.io/v1/boards/alpaca/jobs"
+  },
+  {
+    "name": "ComplyAdvantage",
+    "check_type": "ats_greenhouse",
+    "board_slug": "complyadvantage",
+    "careers_url": "https://boards.greenhouse.io/complyadvantage",
+    "category": "fintech-risk",
+    "location_filter": null,
+    "source_ats": "greenhouse",
+    "source_endpoint": "https://boards-api.greenhouse.io/v1/boards/complyadvantage/jobs"
+  },
+  {
+    "name": "Databricks",
+    "check_type": "ats_greenhouse",
+    "board_slug": "databricks",
+    "careers_url": "https://boards.greenhouse.io/databricks",
+    "category": "data-platforms",
+    "location_filter": null,
+    "source_ats": "greenhouse",
+    "source_endpoint": "https://boards-api.greenhouse.io/v1/boards/databricks/jobs"
+  },
+  {
+    "name": "Together AI",
+    "check_type": "ats_greenhouse",
+    "board_slug": "togetherai",
+    "careers_url": "https://boards.greenhouse.io/togetherai",
+    "category": "ai-data",
+    "location_filter": null,
+    "source_ats": "greenhouse",
+    "source_endpoint": "https://boards-api.greenhouse.io/v1/boards/togetherai/jobs"
+  },
+  {
+    "name": "Sardine",
+    "check_type": "ats_ashby",
+    "board_slug": "sardine",
+    "careers_url": "https://jobs.ashbyhq.com/sardine",
+    "category": "fintech-risk",
+    "location_filter": null,
+    "source_ats": "ashby",
+    "source_endpoint": "https://api.ashbyhq.com/posting-api/job-board/sardine"
+  },
+  {
+    "name": "Persona",
+    "check_type": "ats_ashby",
+    "board_slug": "persona",
+    "careers_url": "https://jobs.ashbyhq.com/persona",
+    "category": "fintech-risk",
+    "location_filter": null,
+    "source_ats": "ashby",
+    "source_endpoint": "https://api.ashbyhq.com/posting-api/job-board/persona"
+  },
+  {
+    "name": "Riskified",
+    "check_type": "ats_greenhouse",
+    "board_slug": "riskified",
+    "careers_url": "https://boards.greenhouse.io/riskified",
+    "category": "fintech-risk",
+    "location_filter": null,
+    "source_ats": "greenhouse",
+    "source_endpoint": "https://boards-api.greenhouse.io/v1/boards/riskified/jobs"
+  },
+  {
+    "name": "Upstart",
+    "check_type": "ats_greenhouse",
+    "board_slug": "upstart",
+    "careers_url": "https://boards.greenhouse.io/upstart",
+    "category": "fintech-risk",
+    "location_filter": null,
+    "source_ats": "greenhouse",
+    "source_endpoint": "https://boards-api.greenhouse.io/v1/boards/upstart/jobs"
+  },
+  {
+    "name": "MongoDB",
+    "check_type": "ats_greenhouse",
+    "board_slug": "mongodb",
+    "careers_url": "https://boards.greenhouse.io/mongodb",
+    "category": "data-platforms",
+    "location_filter": null,
+    "source_ats": "greenhouse",
+    "source_endpoint": "https://boards-api.greenhouse.io/v1/boards/mongodb/jobs"
+  },
+  {
+    "name": "Datafold",
+    "check_type": "ats_ashby",
+    "board_slug": "datafold",
+    "careers_url": "https://jobs.ashbyhq.com/datafold",
+    "category": "data-platforms",
+    "location_filter": null,
+    "source_ats": "ashby",
+    "source_endpoint": "https://api.ashbyhq.com/posting-api/job-board/datafold"
+  },
+  {
+    "name": "Kalshi",
+    "check_type": "ats_greenhouse",
+    "board_slug": "kalshi",
+    "careers_url": "https://boards.greenhouse.io/kalshi",
+    "category": "fintech-data",
+    "location_filter": null,
+    "source_ats": "greenhouse",
+    "source_endpoint": "https://boards-api.greenhouse.io/v1/boards/kalshi/jobs"
+  },
+  {
+    "name": "Metabase",
+    "check_type": "ats_lever",
+    "board_slug": "metabase",
+    "careers_url": "https://jobs.lever.co/metabase",
+    "category": "data-platforms",
+    "location_filter": null,
+    "source_ats": "lever",
+    "source_endpoint": "https://api.lever.co/v0/postings/metabase?mode=json"
+  },
+  {
+    "name": "Elastic",
+    "check_type": "ats_greenhouse",
+    "board_slug": "elastic",
+    "careers_url": "https://boards.greenhouse.io/elastic",
+    "category": "data-platforms",
+    "location_filter": null,
+    "source_ats": "greenhouse",
+    "source_endpoint": "https://boards-api.greenhouse.io/v1/boards/elastic/jobs"
+  },
+  {
+    "name": "ClickHouse",
+    "check_type": "ats_greenhouse",
+    "board_slug": "clickhouse",
+    "careers_url": "https://boards.greenhouse.io/clickhouse",
+    "category": "data-platforms",
+    "location_filter": null,
+    "source_ats": "greenhouse",
+    "source_endpoint": "https://boards-api.greenhouse.io/v1/boards/clickhouse/jobs"
+  },
+  {
+    "name": "EarnIn",
+    "check_type": "ats_greenhouse",
+    "board_slug": "earnin",
+    "careers_url": "https://boards.greenhouse.io/earnin",
+    "category": "fintech-risk",
+    "location_filter": null,
+    "source_ats": "greenhouse",
+    "source_endpoint": "https://boards-api.greenhouse.io/v1/boards/earnin/jobs"
+  },
+  {
+    "name": "Baseten",
+    "check_type": "ats_ashby",
+    "board_slug": "baseten",
+    "careers_url": "https://jobs.ashbyhq.com/baseten",
+    "category": "ai-data",
+    "location_filter": null,
+    "source_ats": "ashby",
+    "source_endpoint": "https://api.ashbyhq.com/posting-api/job-board/baseten"
+  },
+  {
+    "name": "LangChain",
+    "check_type": "ats_ashby",
+    "board_slug": "langchain",
+    "careers_url": "https://jobs.ashbyhq.com/langchain",
+    "category": "ai-data",
+    "location_filter": null,
+    "source_ats": "ashby",
+    "source_endpoint": "https://api.ashbyhq.com/posting-api/job-board/langchain"
+  },
+  {
+    "name": "Aptos Labs",
+    "check_type": "ats_greenhouse",
+    "board_slug": "aptoslabs",
+    "careers_url": "https://boards.greenhouse.io/aptoslabs",
+    "category": "crypto-protocols",
+    "location_filter": null,
+    "source_ats": "greenhouse",
+    "source_endpoint": "https://boards-api.greenhouse.io/v1/boards/aptoslabs/jobs"
+  },
+  {
+    "name": "Collibra",
+    "check_type": "ats_greenhouse",
+    "board_slug": "collibra",
+    "careers_url": "https://boards.greenhouse.io/collibra",
+    "category": "data-platforms",
+    "location_filter": null,
+    "source_ats": "greenhouse",
+    "source_endpoint": "https://boards-api.greenhouse.io/v1/boards/collibra/jobs"
+  },
+  {
+    "name": "Figment",
+    "check_type": "ats_greenhouse",
+    "board_slug": "figment",
+    "careers_url": "https://boards.greenhouse.io/figment",
+    "category": "crypto-infra",
+    "location_filter": null,
+    "source_ats": "greenhouse",
+    "source_endpoint": "https://boards-api.greenhouse.io/v1/boards/figment/jobs"
+  },
+  {
+    "name": "Fireworks AI",
+    "check_type": "ats_greenhouse",
+    "board_slug": "fireworksai",
+    "careers_url": "https://boards.greenhouse.io/fireworksai",
+    "category": "ai-data",
+    "location_filter": null,
+    "source_ats": "greenhouse",
+    "source_endpoint": "https://boards-api.greenhouse.io/v1/boards/fireworksai/jobs"
+  },
+  {
+    "name": "Hightouch",
+    "check_type": "ats_greenhouse",
+    "board_slug": "hightouch",
+    "careers_url": "https://boards.greenhouse.io/hightouch",
+    "category": "data-platforms",
+    "location_filter": null,
+    "source_ats": "greenhouse",
+    "source_endpoint": "https://boards-api.greenhouse.io/v1/boards/hightouch/jobs"
+  },
+  {
+    "name": "Neon",
+    "check_type": "ats_ashby",
+    "board_slug": "neon",
+    "careers_url": "https://jobs.ashbyhq.com/neon",
+    "category": "data-platforms",
+    "location_filter": null,
+    "source_ats": "ashby",
+    "source_endpoint": "https://api.ashbyhq.com/posting-api/job-board/neon"
+  },
+  {
+    "name": "RunPod",
+    "check_type": "ats_ashby",
+    "board_slug": "runpod",
+    "careers_url": "https://jobs.ashbyhq.com/runpod",
+    "category": "ai-data",
+    "location_filter": null,
+    "source_ats": "ashby",
+    "source_endpoint": "https://api.ashbyhq.com/posting-api/job-board/runpod"
+  },
+  {
+    "name": "Block",
+    "check_type": "ats_greenhouse",
+    "board_slug": "block",
+    "careers_url": "https://boards.greenhouse.io/block",
+    "category": "fintech-data",
+    "location_filter": null,
+    "source_ats": "greenhouse",
+    "source_endpoint": "https://boards-api.greenhouse.io/v1/boards/block/jobs"
+  },
+  {
+    "name": "Xero",
+    "check_type": "ats_ashby",
+    "board_slug": "xero",
+    "careers_url": "https://jobs.ashbyhq.com/xero",
+    "category": "melbourne-data",
+    "location_filter": "melbourne, victoria, vic, remote australia, australia remote",
+    "source_ats": "ashby",
+    "source_endpoint": "https://api.ashbyhq.com/posting-api/job-board/xero"
+  },
+  {
+    "name": "Feedzai",
+    "check_type": "ats_greenhouse",
+    "board_slug": "feedzai",
+    "careers_url": "https://boards.greenhouse.io/feedzai",
+    "category": "fintech-risk",
+    "location_filter": null,
+    "source_ats": "greenhouse",
+    "source_endpoint": "https://boards-api.greenhouse.io/v1/boards/feedzai/jobs"
+  },
+  {
+    "name": "Sentry",
+    "check_type": "ats_ashby",
+    "board_slug": "sentry",
+    "careers_url": "https://jobs.ashbyhq.com/sentry",
+    "category": "data-platforms",
+    "location_filter": null,
+    "source_ats": "ashby",
+    "source_endpoint": "https://api.ashbyhq.com/posting-api/job-board/sentry"
+  },
+  {
+    "name": "Snorkel AI",
+    "check_type": "ats_greenhouse",
+    "board_slug": "snorkelai",
+    "careers_url": "https://boards.greenhouse.io/snorkelai",
+    "category": "ai-data",
+    "location_filter": null,
+    "source_ats": "greenhouse",
+    "source_endpoint": "https://boards-api.greenhouse.io/v1/boards/snorkelai/jobs"
+  },
+  {
+    "name": "Grafana Labs",
+    "check_type": "ats_greenhouse",
+    "board_slug": "grafanalabs",
+    "careers_url": "https://boards.greenhouse.io/grafanalabs",
+    "category": "data-platforms",
+    "location_filter": null,
+    "source_ats": "greenhouse",
+    "source_endpoint": "https://boards-api.greenhouse.io/v1/boards/grafanalabs/jobs"
+  },
+  {
+    "name": "Marqeta",
+    "check_type": "ats_greenhouse",
+    "board_slug": "marqeta",
+    "careers_url": "https://boards.greenhouse.io/marqeta",
+    "category": "fintech-data",
+    "location_filter": null,
+    "source_ats": "greenhouse",
+    "source_endpoint": "https://boards-api.greenhouse.io/v1/boards/marqeta/jobs"
+  },
+  {
+    "name": "Modal Labs",
+    "check_type": "ats_ashby",
+    "board_slug": "modal",
+    "careers_url": "https://jobs.ashbyhq.com/modal",
+    "category": "ai-data",
+    "location_filter": null,
+    "source_ats": "ashby",
+    "source_endpoint": "https://api.ashbyhq.com/posting-api/job-board/modal"
+  },
+  {
+    "name": "Tailscale",
+    "check_type": "ats_greenhouse",
+    "board_slug": "tailscale",
+    "careers_url": "https://boards.greenhouse.io/tailscale",
+    "category": "data-platforms",
+    "location_filter": null,
+    "source_ats": "greenhouse",
+    "source_endpoint": "https://boards-api.greenhouse.io/v1/boards/tailscale/jobs"
+  },
+  {
+    "name": "Airbyte",
+    "check_type": "ats_ashby",
+    "board_slug": "airbyte",
+    "careers_url": "https://jobs.ashbyhq.com/airbyte",
+    "category": "data-platforms",
+    "location_filter": null,
+    "source_ats": "ashby",
+    "source_endpoint": "https://api.ashbyhq.com/posting-api/job-board/airbyte"
+  },
+  {
+    "name": "Alloy",
+    "check_type": "ats_greenhouse",
+    "board_slug": "alloy",
+    "careers_url": "https://boards.greenhouse.io/alloy",
+    "category": "fintech-risk",
+    "location_filter": null,
+    "source_ats": "greenhouse",
+    "source_endpoint": "https://boards-api.greenhouse.io/v1/boards/alloy/jobs"
+  },
+  {
+    "name": "Blockworks",
+    "check_type": "ats_ashby",
+    "board_slug": "blockworks",
+    "careers_url": "https://jobs.ashbyhq.com/blockworks",
+    "category": "crypto-data",
+    "location_filter": null,
+    "source_ats": "ashby",
+    "source_endpoint": "https://api.ashbyhq.com/posting-api/job-board/blockworks"
+  },
+  {
+    "name": "Clear Street",
+    "check_type": "ats_greenhouse",
+    "board_slug": "clearstreet",
+    "careers_url": "https://boards.greenhouse.io/clearstreet",
+    "category": "fintech-data",
+    "location_filter": null,
+    "source_ats": "greenhouse",
+    "source_endpoint": "https://boards-api.greenhouse.io/v1/boards/clearstreet/jobs"
+  },
+  {
+    "name": "Confluent",
+    "check_type": "ats_ashby",
+    "board_slug": "confluent",
+    "careers_url": "https://jobs.ashbyhq.com/confluent",
+    "category": "data-platforms",
+    "location_filter": null,
+    "source_ats": "ashby",
+    "source_endpoint": "https://api.ashbyhq.com/posting-api/job-board/confluent"
+  },
+  {
+    "name": "Sift",
+    "check_type": "ats_ashby",
+    "board_slug": "sift",
+    "careers_url": "https://jobs.ashbyhq.com/sift",
+    "category": "fintech-risk",
+    "location_filter": null,
+    "source_ats": "ashby",
+    "source_endpoint": "https://api.ashbyhq.com/posting-api/job-board/sift"
+  },
+  {
+    "name": "Supabase",
+    "check_type": "ats_ashby",
+    "board_slug": "supabase",
+    "careers_url": "https://jobs.ashbyhq.com/supabase",
+    "category": "data-platforms",
+    "location_filter": null,
+    "source_ats": "ashby",
+    "source_endpoint": "https://api.ashbyhq.com/posting-api/job-board/supabase"
+  },
+  {
+    "name": "Redis",
+    "check_type": "ats_ashby",
+    "board_slug": "redis",
+    "careers_url": "https://jobs.ashbyhq.com/redis",
+    "category": "data-platforms",
+    "location_filter": null,
+    "source_ats": "ashby",
+    "source_endpoint": "https://api.ashbyhq.com/posting-api/job-board/redis"
+  },
+  {
+    "name": "Gemini",
+    "check_type": "ats_greenhouse",
+    "board_slug": "gemini",
+    "careers_url": "https://boards.greenhouse.io/gemini",
+    "category": "crypto-fintech",
+    "location_filter": null,
+    "source_ats": "greenhouse",
+    "source_endpoint": "https://boards-api.greenhouse.io/v1/boards/gemini/jobs"
+  },
+  {
+    "name": "Astronomer",
+    "check_type": "ats_ashby",
+    "board_slug": "astronomer",
+    "careers_url": "https://jobs.ashbyhq.com/astronomer",
+    "category": "data-platforms",
+    "location_filter": null,
+    "source_ats": "ashby",
+    "source_endpoint": "https://api.ashbyhq.com/posting-api/job-board/astronomer"
+  },
+  {
+    "name": "FalconX",
+    "check_type": "ats_greenhouse",
+    "board_slug": "falconx",
+    "careers_url": "https://boards.greenhouse.io/falconx",
+    "category": "crypto-markets",
+    "location_filter": null,
+    "source_ats": "greenhouse",
+    "source_endpoint": "https://boards-api.greenhouse.io/v1/boards/falconx/jobs"
+  },
+  {
+    "name": "PostHog",
+    "check_type": "ats_ashby",
+    "board_slug": "posthog",
+    "careers_url": "https://jobs.ashbyhq.com/posthog",
+    "category": "data-platforms",
+    "location_filter": null,
+    "source_ats": "ashby",
+    "source_endpoint": "https://api.ashbyhq.com/posting-api/job-board/posthog"
+  },
+  {
+    "name": "Offchain Labs",
+    "check_type": "ats_lever",
+    "board_slug": "offchainlabs",
+    "careers_url": "https://jobs.lever.co/offchainlabs",
+    "category": "crypto-protocols",
+    "location_filter": null,
+    "source_ats": "lever",
+    "source_endpoint": "https://api.lever.co/v0/postings/offchainlabs?mode=json"
+  },
+  {
+    "name": "Anyscale",
+    "check_type": "ats_ashby",
+    "board_slug": "anyscale",
+    "careers_url": "https://jobs.ashbyhq.com/anyscale",
+    "category": "ai-data",
+    "location_filter": null,
+    "source_ats": "ashby",
+    "source_endpoint": "https://api.ashbyhq.com/posting-api/job-board/anyscale"
+  },
+  {
+    "name": "Consensys",
+    "check_type": "ats_greenhouse",
+    "board_slug": "consensys",
+    "careers_url": "https://boards.greenhouse.io/consensys",
+    "category": "crypto-infra",
+    "location_filter": null,
+    "source_ats": "greenhouse",
+    "source_endpoint": "https://boards-api.greenhouse.io/v1/boards/consensys/jobs"
+  },
+  {
+    "name": "Pinecone",
+    "check_type": "ats_ashby",
+    "board_slug": "pinecone",
+    "careers_url": "https://jobs.ashbyhq.com/pinecone",
+    "category": "ai-data",
+    "location_filter": null,
+    "source_ats": "ashby",
+    "source_endpoint": "https://api.ashbyhq.com/posting-api/job-board/pinecone"
+  },
+  {
+    "name": "Blockdaemon",
+    "check_type": "ats_ashby",
+    "board_slug": "blockdaemon",
+    "careers_url": "https://jobs.ashbyhq.com/blockdaemon",
+    "category": "crypto-infra",
+    "location_filter": null,
+    "source_ats": "ashby",
+    "source_endpoint": "https://api.ashbyhq.com/posting-api/job-board/blockdaemon"
+  },
+  {
+    "name": "Monte Carlo Data",
+    "check_type": "ats_ashby",
+    "board_slug": "montecarlodata",
+    "careers_url": "https://jobs.ashbyhq.com/montecarlodata",
+    "category": "data-platforms",
+    "location_filter": null,
+    "source_ats": "ashby",
+    "source_endpoint": "https://api.ashbyhq.com/posting-api/job-board/montecarlodata"
+  },
+  {
+    "name": "Securitize",
+    "check_type": "ats_greenhouse",
+    "board_slug": "securitize",
+    "careers_url": "https://boards.greenhouse.io/securitize",
+    "category": "crypto-fintech",
+    "location_filter": null,
+    "source_ats": "greenhouse",
+    "source_endpoint": "https://boards-api.greenhouse.io/v1/boards/securitize/jobs"
+  },
+  {
+    "name": "MotherDuck",
+    "check_type": "ats_ashby",
+    "board_slug": "motherduck",
+    "careers_url": "https://jobs.ashbyhq.com/motherduck",
+    "category": "data-platforms",
+    "location_filter": null,
+    "source_ats": "ashby",
+    "source_endpoint": "https://api.ashbyhq.com/posting-api/job-board/motherduck"
+  },
+  {
+    "name": "Mysten Labs",
+    "check_type": "ats_ashby",
+    "board_slug": "mystenlabs",
+    "careers_url": "https://jobs.ashbyhq.com/mystenlabs",
+    "category": "crypto-protocols",
+    "location_filter": null,
+    "source_ats": "ashby",
+    "source_endpoint": "https://api.ashbyhq.com/posting-api/job-board/mystenlabs"
+  },
+  {
+    "name": "Prefect",
+    "check_type": "ats_ashby",
+    "board_slug": "prefect",
+    "careers_url": "https://jobs.ashbyhq.com/prefect",
+    "category": "data-platforms",
+    "location_filter": null,
+    "source_ats": "ashby",
+    "source_endpoint": "https://api.ashbyhq.com/posting-api/job-board/prefect"
+  },
+  {
+    "name": "Atlan",
+    "check_type": "ats_ashby",
+    "board_slug": "atlan",
+    "careers_url": "https://jobs.ashbyhq.com/atlan",
+    "category": "data-platforms",
+    "location_filter": null,
+    "source_ats": "ashby",
+    "source_endpoint": "https://api.ashbyhq.com/posting-api/job-board/atlan"
+  },
+  {
+    "name": "Parity Technologies",
+    "check_type": "ats_ashby",
+    "board_slug": "parity",
+    "careers_url": "https://jobs.ashbyhq.com/parity",
+    "category": "crypto-infra",
+    "location_filter": null,
+    "source_ats": "ashby",
+    "source_endpoint": "https://api.ashbyhq.com/posting-api/job-board/parity"
+  },
+  {
+    "name": "Weaviate",
+    "check_type": "ats_ashby",
+    "board_slug": "weaviate",
+    "careers_url": "https://jobs.ashbyhq.com/weaviate",
+    "category": "ai-data",
+    "location_filter": null,
+    "source_ats": "ashby",
+    "source_endpoint": "https://api.ashbyhq.com/posting-api/job-board/weaviate"
+  },
+  {
+    "name": "Immunefi",
+    "check_type": "ats_greenhouse",
+    "board_slug": "immunefi",
+    "careers_url": "https://boards.greenhouse.io/immunefi",
+    "category": "crypto-security",
+    "location_filter": null,
+    "source_ats": "greenhouse",
+    "source_endpoint": "https://boards-api.greenhouse.io/v1/boards/immunefi/jobs"
+  },
+  {
+    "name": "Succinct Labs",
+    "check_type": "ats_ashby",
+    "board_slug": "succinct",
+    "careers_url": "https://jobs.ashbyhq.com/succinct",
+    "category": "crypto-infra",
+    "location_filter": null,
+    "source_ats": "ashby",
+    "source_endpoint": "https://api.ashbyhq.com/posting-api/job-board/succinct"
+  },
+  {
+    "name": "Dagster Labs",
+    "check_type": "ats_greenhouse",
+    "board_slug": "dagsterlabs",
+    "careers_url": "https://boards.greenhouse.io/dagsterlabs",
+    "category": "data-platforms",
+    "location_filter": null,
+    "source_ats": "greenhouse",
+    "source_endpoint": "https://boards-api.greenhouse.io/v1/boards/dagsterlabs/jobs"
+  },
+  {
+    "name": "Tenderly",
+    "check_type": "ats_ashby",
+    "board_slug": "tenderly",
+    "careers_url": "https://jobs.ashbyhq.com/tenderly",
+    "category": "crypto-infra",
+    "location_filter": null,
+    "source_ats": "ashby",
+    "source_endpoint": "https://api.ashbyhq.com/posting-api/job-board/tenderly"
+  }
+]

@@ -21,7 +21,7 @@ import {
 } from "discord.js";
 import { config } from "../config.js";
 import type { JobTrackerRepository, RoleHideDurationDays } from "../db/repositories.js";
-import { buildHiddenRolesReport, buildKeywordsReport, buildTargetsReport } from "../reports/admin-reports.js";
+import { buildHiddenReport, buildKeywordsReport, buildTargetsReport } from "../reports/admin-reports.js";
 import { buildActiveApplicationsDigest, buildClosedApplicationsHistory } from "../reports/applications-report.js";
 import { buildOpenRolesReport, type OpenRolesReportMode } from "../reports/open-roles-report.js";
 import { scanTargets } from "../scraper/scanner.js";
@@ -35,7 +35,8 @@ import {
   type ClosedSubStatus,
   type KeywordKind,
   type OpenRoleWithTarget,
-  type OutreachStatus
+  type OutreachStatus,
+  type TargetRow
 } from "../types.js";
 import { sendMessagesToConfiguredChannel } from "./send.js";
 
@@ -177,7 +178,10 @@ export class InteractionHandler {
     if (subcommand === "list") {
       await interaction.deferReply({ flags: MessageFlags.Ephemeral });
       const limit = interaction.options.getInteger("limit") ?? 25;
-      await replyWithMessages(interaction, buildHiddenRolesReport(this.repository.listHiddenRoles(limit)));
+      await replyWithMessages(
+        interaction,
+        buildHiddenReport(this.repository.listHiddenRoles(limit), this.repository.listHiddenTargets(limit))
+      );
       return;
     }
 
@@ -188,6 +192,18 @@ export class InteractionHandler {
         content: role
           ? `Unhid #${role.id}: ${role.company} - ${role.role_title}. It can reappear after the next scan if it is still open.`
           : `No hidden role found for #${id}.`,
+        flags: MessageFlags.Ephemeral
+      });
+      return;
+    }
+
+    if (subcommand === "unhide_target") {
+      const id = interaction.options.getInteger("id", true);
+      const target = this.repository.unhideTarget(id);
+      await interaction.reply({
+        content: target
+          ? `Unhid manual target #${target.id}: ${target.target_name}. It can reappear in the next report.`
+          : `No hidden manual target found for #${id}.`,
         flags: MessageFlags.Ephemeral
       });
     }
@@ -205,6 +221,11 @@ export class InteractionHandler {
 
     if (action === "apply_menu" || action === "hide_menu") {
       await this.handleRoleActionButton(action, interaction);
+      return;
+    }
+
+    if (action === "hide_manual_menu") {
+      await this.handleManualTargetActionButton(interaction);
       return;
     }
 
@@ -268,6 +289,18 @@ export class InteractionHandler {
     }
 
     await interaction.showModal(buildHideRoleModal(interaction.channelId, interaction.message.id));
+  }
+
+  private async handleManualTargetActionButton(interaction: ButtonInteraction): Promise<void> {
+    if (!messageHasManualTargetLines(interaction.message)) {
+      await interaction.reply({
+        content: "No manual targets from this message are still available.",
+        flags: MessageFlags.Ephemeral
+      });
+      return;
+    }
+
+    await interaction.showModal(buildHideManualTargetModal(interaction.channelId, interaction.message.id));
   }
 
   private async handleModal(interaction: ModalSubmitInteraction): Promise<void> {
@@ -399,6 +432,59 @@ export class InteractionHandler {
       return;
     }
 
+    if (kind === "hide_manual_modal") {
+      const sourceMessage = await fetchMessage(this.client, first, second);
+      if (!sourceMessage) {
+        await interaction.reply({
+          content: "I could not find the original manual-target message. Run `/run` and try again.",
+          flags: MessageFlags.Ephemeral
+        });
+        return;
+      }
+
+      const targetNumbers = readRoleNumbers(interaction, "hide_manual_number");
+      if (!targetNumbers) {
+        await interaction.reply({
+          content: "Enter manual target numbers like `1`, `1, 3, 5`, or `1-3`.",
+          flags: MessageFlags.Ephemeral
+        });
+        return;
+      }
+
+      const selection = manualTargetsFromMessageByNumbers(sourceMessage, this.repository, targetNumbers);
+      if (selection.targets.length === 0) {
+        await interaction.reply({
+          content: `I could not find any manual targets for ${formatRoleNumbers(targetNumbers)} in that report message.`,
+          flags: MessageFlags.Ephemeral
+        });
+        return;
+      }
+
+      let duration: RoleHideDurationDays;
+      try {
+        duration = parseHideDuration(interaction.fields.getTextInputValue("hide_manual_duration").trim());
+      } catch {
+        await interaction.reply({
+          content: "Hide Duration (Days) must be `7`, `14`, or `30`.",
+          flags: MessageFlags.Ephemeral
+        });
+        return;
+      }
+
+      const suppressedUntilValues = selection.targets.map((target) => this.repository.hideTarget(target, duration));
+      await removeManualTargetsFromReportMessage(sourceMessage, selection.targets);
+      await interaction.reply({
+        content: hiddenManualTargetsConfirmation(
+          selection.targets,
+          duration,
+          suppressedUntilValues[0],
+          selection.missingTargetNumbers
+        ),
+        flags: MessageFlags.Ephemeral
+      });
+      return;
+    }
+
     if (kind === "update_modal") {
       const applicationId = parseIntegerId(first);
       const heardBackDate = readOptionalDate(interaction, "update_heard_back", "heard-back date");
@@ -500,6 +586,11 @@ function messageHasRoleLines(message: Message): boolean {
   return description.split("\n").some((line) => parseRoleLine(line));
 }
 
+function messageHasManualTargetLines(message: Message): boolean {
+  const description = message.embeds[0]?.description ?? "";
+  return description.split("\n").some((line) => parseManualTargetLine(line));
+}
+
 function rolesFromMessageByNumbers(
   message: Message,
   repository: JobTrackerRepository,
@@ -535,6 +626,45 @@ function parseRoleLine(line: string): { number: string; applyUrl: string } | nul
   return { number: match[1], applyUrl: match[2] };
 }
 
+function manualTargetsFromMessageByNumbers(
+  message: Message,
+  repository: JobTrackerRepository,
+  targetNumbers: string[]
+): { targets: TargetRow[]; missingTargetNumbers: string[] } {
+  const description = message.embeds[0]?.description ?? "";
+  const targetByNumber = new Map<string, { name: string; careersUrl: string }>();
+  for (const line of description.split("\n")) {
+    const parsed = parseManualTargetLine(line);
+    if (parsed) {
+      targetByNumber.set(parsed.number, { name: parsed.name, careersUrl: parsed.careersUrl });
+    }
+  }
+
+  const targets: TargetRow[] = [];
+  const missingTargetNumbers: string[] = [];
+  for (const targetNumber of targetNumbers) {
+    const parsed = targetByNumber.get(targetNumber);
+    const target = parsed ? repository.getManualTargetByNameAndCareersUrl(parsed.name, parsed.careersUrl) : null;
+    if (target) {
+      targets.push(target);
+    } else {
+      missingTargetNumbers.push(targetNumber);
+    }
+  }
+
+  return { targets, missingTargetNumbers };
+}
+
+function parseManualTargetLine(line: string): { number: string; name: string; careersUrl: string } | null {
+  const match = line.match(/^\*\*#(\d+)\*\* \[([^\]]+)\]\((.+?)\)/);
+  if (!match) return null;
+  return {
+    number: match[1],
+    name: unescapeLinkText(match[2]),
+    careersUrl: match[3]
+  };
+}
+
 function buildApplyRoleModal(channelId: string, messageId: string): ModalBuilder {
   return new ModalBuilder()
     .setCustomId(`apply_role_modal:${channelId}:${messageId}`)
@@ -567,6 +697,30 @@ function buildHideRoleModal(channelId: string, messageId: string): ModalBuilder 
       new ActionRowBuilder<TextInputBuilder>().addComponents(
         new TextInputBuilder()
           .setCustomId("hide_duration")
+          .setLabel("Hide Duration (Days)")
+          .setPlaceholder("7, 14, or 30")
+          .setStyle(TextInputStyle.Short)
+          .setRequired(true)
+      )
+    );
+}
+
+function buildHideManualTargetModal(channelId: string, messageId: string): ModalBuilder {
+  return new ModalBuilder()
+    .setCustomId(`hide_manual_modal:${channelId}:${messageId}`)
+    .setTitle("Hide Manual Target")
+    .addComponents(
+      new ActionRowBuilder<TextInputBuilder>().addComponents(
+        new TextInputBuilder()
+          .setCustomId("hide_manual_number")
+          .setLabel("Manual Target Numbers")
+          .setPlaceholder("Example: 1, 3, 5-7")
+          .setStyle(TextInputStyle.Short)
+          .setRequired(true)
+      ),
+      new ActionRowBuilder<TextInputBuilder>().addComponents(
+        new TextInputBuilder()
+          .setCustomId("hide_manual_duration")
           .setLabel("Hide Duration (Days)")
           .setPlaceholder("7, 14, or 30")
           .setStyle(TextInputStyle.Short)
@@ -649,6 +803,24 @@ function hiddenRolesConfirmation(
   return lines.join("\n");
 }
 
+function hiddenManualTargetsConfirmation(
+  targets: TargetRow[],
+  duration: RoleHideDurationDays,
+  suppressedUntil: string,
+  missingTargetNumbers: string[]
+): string {
+  const lines = [`Hidden ${targets.length} manual target${targets.length === 1 ? "" : "s"}.`];
+  lines.push(...targets.slice(0, 5).map((target) => `- ${target.name}`));
+  if (targets.length > 5) {
+    lines.push(`- ...and ${targets.length - 5} more`);
+  }
+  lines.push(`They are hidden until ${suppressedUntil}.`);
+  if (missingTargetNumbers.length > 0) {
+    lines.push(`Skipped unavailable manual target number${missingTargetNumbers.length === 1 ? "" : "s"}: ${formatRoleNumbers(missingTargetNumbers)}.`);
+  }
+  return lines.join("\n");
+}
+
 function formatRoleNumbers(roleNumbers: string[]): string {
   return roleNumbers.map((roleNumber) => `#${roleNumber}`).join(", ");
 }
@@ -682,12 +854,44 @@ async function removeRolesFromReportMessage(message: Message, roles: OpenRoleWit
     .catch(() => undefined);
 }
 
+async function removeManualTargetsFromReportMessage(message: Message, targets: TargetRow[]): Promise<void> {
+  const originalEmbed = message.embeds[0];
+  const description = originalEmbed?.description ?? "";
+  const careersUrls = new Set(targets.map((target) => target.careers_url).filter((value): value is string => Boolean(value)));
+  const nextDescription = removeManualTargetLinesByCareersUrl(description, careersUrls);
+  const hasManualLines = nextDescription.split("\n").some((line) => parseManualTargetLine(line));
+  const embeds = originalEmbed
+    ? [
+        EmbedBuilder.from(originalEmbed).setDescription(
+          hasManualLines ? nextDescription : "All manual targets in this message are now hidden."
+        )
+      ]
+    : [];
+
+  await message
+    .edit({
+      embeds,
+      components: hasManualLines ? message.components : []
+    })
+    .catch(() => undefined);
+}
+
 function removeRoleLinesByApplyUrl(description: string, applyUrls: Set<string>): string {
   return description
     .split("\n")
     .filter((line) => {
       const parsed = parseRoleLine(line);
       return !parsed || !applyUrls.has(parsed.applyUrl);
+    })
+    .join("\n");
+}
+
+function removeManualTargetLinesByCareersUrl(description: string, careersUrls: Set<string>): string {
+  return description
+    .split("\n")
+    .filter((line) => {
+      const parsed = parseManualTargetLine(line);
+      return !parsed || !careersUrls.has(parsed.careersUrl);
     })
     .join("\n");
 }
@@ -912,7 +1116,8 @@ function validateTargetInput(checkType: CheckType, boardSlug: string | null, car
       "ats_lever",
       "ats_workable",
       "ats_recruitee",
-      "ats_smartrecruiters"
+      "ats_smartrecruiters",
+      "ats_workday"
     ].includes(checkType) &&
     !boardSlug
   ) {
@@ -930,4 +1135,8 @@ function validateTargetInput(checkType: CheckType, boardSlug: string | null, car
 function emptyToNull(value: string | null): string | null {
   const trimmed = value?.trim() ?? "";
   return trimmed.length > 0 ? trimmed : null;
+}
+
+function unescapeLinkText(value: string): string {
+  return value.replaceAll("\\[", "[").replaceAll("\\]", "]");
 }

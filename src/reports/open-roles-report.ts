@@ -6,11 +6,12 @@ import {
   type MessageActionRowComponentBuilder,
   type MessageCreateOptions
 } from "discord.js";
-import type { OpenRoleWithTarget } from "../types.js";
+import type { OpenRoleWithTarget, TargetScanOutcome } from "../types.js";
 import type { ScanSummary } from "../scraper/scanner.js";
 
 const MAX_EMBED_DESCRIPTION_LENGTH = 3_800;
 const MAX_ROLES_PER_MESSAGE = 25;
+const MAX_MANUAL_TARGETS_PER_MESSAGE = 25;
 const REPORT_COLOR = 0x2f80ed;
 
 type RoleBucket = "low" | "mid" | "high";
@@ -58,6 +59,11 @@ const LOWER_LEVEL_PATTERNS = [
   /\banalyst\b/i,
   /\bcoordinator\b/i,
   /\bspecialist\b/i,
+  /\brepresentative\b/i,
+  /\brep\b/i,
+  /\bsupport agent\b/i,
+  /\btrainer\b/i,
+  /\binvestigator\b/i,
   /\bassistant\b/i,
   /\bapprentice\b/i
 ];
@@ -213,7 +219,13 @@ export function buildOpenRolesReport(
 ): BuiltOpenRolesReport {
   const includedRoles = filterRolesForMode(roles, mode);
   return {
-    messages: [buildStatusMessage(summary, roles, includedRoles, mode), ...buildRoleMessages(includedRoles, mode)]
+    messages: [
+      buildStatusMessage(summary, roles, includedRoles, mode),
+      ...buildFailedMessages(summary),
+      ...buildManualTargetMessages(summary),
+      ...buildNoMatchMessages(summary),
+      ...buildRoleMessages(includedRoles, mode)
+    ]
   };
 }
 
@@ -294,37 +306,14 @@ function buildStatusMessage(
     `Mid-level: ${bucketCounts.mid}`,
     `High-level: ${bucketCounts.high}`,
     `Included in this report: ${includedRoles.length}`,
-    `Report mode: ${reportModeLabel(mode)}`
+    `Report mode: ${reportModeLabel(mode)}`,
+    `No-match targets: ${noMatches.length}`,
+    `Failed checks: ${failed.length}`,
+    `Manual-only targets: ${manual.length}`
   ];
 
   if (mode === "focused" && bucketCounts.high > 0) {
     lines.push(`High-level roles are hidden in focused mode. Use /run mode:all to include them.`);
-  }
-
-  if (noMatches.length > 0) {
-    lines.push("", "**No matching roles**");
-    lines.push(...noMatches.map((outcome) => `- ${outcome.target.name}`));
-  }
-
-  if (failed.length > 0) {
-    lines.push("", "**⚠️ Checks failed - verify manually**");
-    lines.push(
-      ...failed.map((outcome) => {
-        const link = outcome.target.careers_url ? ` - ${outcome.target.careers_url}` : "";
-        const error = outcome.error ? ` (${outcome.error})` : "";
-        return `- ${outcome.target.name}${link}${error}`;
-      })
-    );
-  }
-
-  if (manual.length > 0) {
-    lines.push("", "**Manual-only - check directly**");
-    lines.push(
-      ...manual.map((outcome) => {
-        const link = outcome.target.careers_url ? ` - ${outcome.target.careers_url}` : "";
-        return `- ${outcome.target.name}${link}`;
-      })
-    );
   }
 
   if (summary.outcomes.length === 0) {
@@ -339,6 +328,118 @@ function buildStatusMessage(
         .setColor(REPORT_COLOR)
     ]
   };
+}
+
+function buildNoMatchMessages(summary: ScanSummary): MessageCreateOptions[] {
+  const outcomes = summary.outcomes.filter((outcome) => outcome.status === "ok" && outcome.matchingRoles.length === 0);
+  if (outcomes.length === 0) return [];
+  return buildOutcomeMessages(
+    "No Matching Roles",
+    outcomes.map((outcome) => `- ${outcome.target.name}`)
+  );
+}
+
+function buildFailedMessages(summary: ScanSummary): MessageCreateOptions[] {
+  const outcomes = summary.outcomes.filter((outcome) => outcome.status === "failed");
+  if (outcomes.length === 0) return [];
+  return buildOutcomeMessages(
+    "Checks Failed - Verify Manually",
+    outcomes.map((outcome) => {
+      const link = outcome.target.careers_url ? ` - ${outcome.target.careers_url}` : "";
+      const error = outcome.error ? ` (${outcome.error})` : "";
+      return `- ${outcome.target.name}${link}${error}`;
+    })
+  );
+}
+
+function buildManualTargetMessages(summary: ScanSummary): MessageCreateOptions[] {
+  const outcomes = summary.outcomes
+    .filter((outcome) => outcome.status === "manual")
+    .sort((left, right) => left.target.name.localeCompare(right.target.name, undefined, { sensitivity: "base" }));
+  if (outcomes.length === 0) return [];
+
+  const messages: MessageCreateOptions[] = [];
+  let lines: string[] = [];
+  let targetCount = 0;
+
+  for (const outcome of outcomes) {
+    const line = formatManualTargetLine(outcome, targetCount + 1);
+    const nextDescriptionLength = [...lines, line].join("\n").length;
+    if (
+      lines.length > 0 &&
+      (nextDescriptionLength > MAX_EMBED_DESCRIPTION_LENGTH || targetCount >= MAX_MANUAL_TARGETS_PER_MESSAGE)
+    ) {
+      messages.push(toManualTargetMessage(lines, messages.length + 1));
+      lines = [];
+      targetCount = 0;
+    }
+
+    lines.push(formatManualTargetLine(outcome, targetCount + 1));
+    targetCount += 1;
+  }
+
+  if (lines.length > 0) {
+    messages.push(toManualTargetMessage(lines, messages.length + 1));
+  }
+
+  return messages;
+}
+
+function buildOutcomeMessages(title: string, outcomeLines: string[]): MessageCreateOptions[] {
+  const messages: MessageCreateOptions[] = [];
+  let lines: string[] = [];
+
+  for (const line of outcomeLines) {
+    const nextDescriptionLength = [...lines, line].join("\n").length;
+    if (lines.length > 0 && nextDescriptionLength > MAX_EMBED_DESCRIPTION_LENGTH) {
+      messages.push(toSimpleEmbedMessage(title, lines, messages.length + 1));
+      lines = [];
+    }
+    lines.push(line);
+  }
+
+  if (lines.length > 0) {
+    messages.push(toSimpleEmbedMessage(title, lines, messages.length + 1));
+  }
+
+  return messages;
+}
+
+function toSimpleEmbedMessage(title: string, lines: string[], page: number): MessageCreateOptions {
+  return {
+    embeds: [
+      new EmbedBuilder()
+        .setTitle(`${title} - Page ${page}`)
+        .setDescription(splitLongLines(lines).join("\n"))
+        .setColor(REPORT_COLOR)
+    ]
+  };
+}
+
+function toManualTargetMessage(lines: string[], page: number): MessageCreateOptions {
+  return {
+    embeds: [
+      new EmbedBuilder()
+        .setTitle(`Manual-Only - Page ${page}`)
+        .setDescription(lines.join("\n"))
+        .setFooter({ text: "Use Hide Manual, then fill out the popup fields." })
+        .setColor(REPORT_COLOR)
+    ],
+    components: [
+      new ActionRowBuilder<MessageActionRowComponentBuilder>().addComponents(
+        new ButtonBuilder().setCustomId("hide_manual_menu").setLabel("Hide Manual").setStyle(ButtonStyle.Secondary)
+      )
+    ]
+  };
+}
+
+function formatManualTargetLine(outcome: TargetScanOutcome, targetNumber: number): string {
+  const name = escapeLinkText(truncateText(outcome.target.name, 92));
+  const category = outcome.target.category ? ` - ${truncateText(outcome.target.category, 60)}` : "";
+  if (!outcome.target.careers_url) {
+    return `**#${targetNumber}** ${name}${category}`;
+  }
+  return `**#${targetNumber}** [${name}](${outcome.target.careers_url})${category}`;
 }
 
 function toRoleMessage(

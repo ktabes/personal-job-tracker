@@ -16,7 +16,7 @@ export async function scanTargets(
   category: string | null = null
 ): Promise<ScanSummary> {
   const checkedAt = nowIso();
-  const targets = repository.listTargets(false, category);
+  const targets = repository.listTargetsForScan(category);
   const matcher = buildKeywordMatcher(repository.listKeywords());
   const outcomes = await Promise.all(targets.map((target) => fetchTargetRoles(target, matcher)));
 

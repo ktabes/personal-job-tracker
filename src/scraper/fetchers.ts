@@ -49,6 +49,8 @@ async function fetchRolesForTarget(target: TargetRow): Promise<ParsedRole[]> {
       return fetchSmartRecruitersRoles(requiredBoardSlug(target));
     case "ats_personio":
       return fetchPersonioRoles(target);
+    case "ats_workday":
+      return fetchWorkdayRoles(requiredBoardSlug(target), target.careers_url);
     case "html":
       return fetchHtmlStructuredRoles(requiredCareersUrl(target));
     case "manual":
@@ -189,6 +191,26 @@ async function fetchPersonioRoles(target: TargetRow): Promise<ParsedRole[]> {
   });
 }
 
+async function fetchWorkdayRoles(boardSlug: string, careersUrl: string | null): Promise<ParsedRole[]> {
+  const url = workdayJobsUrl(boardSlug);
+  const roles: ParsedRole[] = [];
+  const limit = 20;
+
+  for (let offset = 0; offset < 1_000; offset += limit) {
+    const json = await fetchWorkdayJson(url, { limit, offset, searchText: "" });
+    const response = asRecord(json, "Workday response");
+    const postings = getArrayProperty(json, "jobPostings", "Workday jobPostings");
+    roles.push(...postings.map((posting) => workdayRole(posting, url, careersUrl)));
+
+    const total = optionalNumber(response.total);
+    if (postings.length < limit || (total !== null && roles.length >= total)) {
+      break;
+    }
+  }
+
+  return roles;
+}
+
 async function fetchHtmlStructuredRoles(careersUrl: string): Promise<ParsedRole[]> {
   const html = await fetchText(careersUrl);
   const jsonLdObjects = extractJsonLdObjects(html);
@@ -241,6 +263,21 @@ async function fetchJson(url: string): Promise<unknown> {
   return response.json();
 }
 
+async function fetchWorkdayJson(url: string, body: Record<string, unknown>): Promise<unknown> {
+  const response = await fetchWithTimeout(url, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      accept: "application/json"
+    },
+    body: JSON.stringify(body)
+  });
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status} while fetching ${url}`);
+  }
+  return response.json();
+}
+
 async function fetchText(url: string): Promise<string> {
   const response = await fetchWithTimeout(url);
   if (!response.ok) {
@@ -249,14 +286,16 @@ async function fetchText(url: string): Promise<string> {
   return response.text();
 }
 
-async function fetchWithTimeout(url: string): Promise<Response> {
+async function fetchWithTimeout(url: string, init: RequestInit = {}): Promise<Response> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
     return await fetch(url, {
+      ...init,
       signal: controller.signal,
       headers: {
-        "user-agent": "discord-job-search-tracker-bot/0.1 (+personal job tracker)"
+        "user-agent": "discord-job-search-tracker-bot/0.1 (+personal job tracker)",
+        ...init.headers
       }
     });
   } finally {
@@ -423,6 +462,55 @@ function personioJobUrl(target: TargetRow, id: string): string {
 
   const careersUrl = requiredCareersUrl(target);
   return careersUrl.replace(/\/xml(?:\?.*)?$/, `/job/${encodeURIComponent(id)}?display=en`);
+}
+
+function workdayRole(posting: unknown, jobsUrl: string, careersUrl: string | null): ParsedRole {
+  const record = asRecord(posting, "Workday posting");
+  const externalPath = requiredString(record.externalPath, "Workday externalPath");
+  return {
+    external_id:
+      optionalString(record.externalPath) ??
+      optionalString(record.id) ??
+      optionalString(arrayFromMaybe(record.bulletFields)[0]),
+    title: requiredString(record.title, "Workday posting title"),
+    location: optionalString(record.locationsText) ?? optionalString(record.location),
+    apply_url: workdayApplyUrl(jobsUrl, careersUrl, externalPath)
+  };
+}
+
+function workdayJobsUrl(boardSlug: string): string {
+  const trimmed = boardSlug.trim();
+  if (/^https?:\/\//.test(trimmed)) {
+    return trimmed;
+  }
+
+  const [host, tenant, site] = trimmed.split("|").map((part) => part.trim()).filter(Boolean);
+  if (!host || !tenant || !site) {
+    throw new Error("Workday board_slug must be a full CXS jobs URL or host|tenant|site");
+  }
+
+  return `https://${host}/wday/cxs/${encodeURIComponent(tenant)}/${encodeURIComponent(site)}/jobs`;
+}
+
+function workdayApplyUrl(jobsUrl: string, careersUrl: string | null, externalPath: string): string {
+  const base = careersUrl?.trim() || workdayCareersUrlFromJobsUrl(jobsUrl);
+  if (/^https?:\/\//.test(externalPath)) {
+    return externalPath;
+  }
+
+  const normalizedBase = base.replace(/\/$/, "");
+  const normalizedPath = externalPath.startsWith("/") ? externalPath : `/${externalPath}`;
+  return `${normalizedBase}${normalizedPath}`;
+}
+
+function workdayCareersUrlFromJobsUrl(jobsUrl: string): string {
+  const url = new URL(jobsUrl);
+  const parts = url.pathname.split("/").filter(Boolean);
+  const site = parts[3];
+  if (!site) {
+    throw new Error("Workday jobs URL did not contain a site segment");
+  }
+  return `${url.origin}/en-US/${encodeURIComponent(site)}`;
 }
 
 function arrayFromMaybe(value: unknown): unknown[] {
