@@ -93,7 +93,6 @@ function initSchema(database: Database.Database): void {
     CREATE INDEX IF NOT EXISTS idx_applications_status ON applications(status);
     CREATE INDEX IF NOT EXISTS idx_applications_date_applied ON applications(date_applied DESC);
     CREATE INDEX IF NOT EXISTS idx_applications_decision_date ON applications(decision_date DESC);
-    CREATE INDEX IF NOT EXISTS idx_applications_follow_up_date ON applications(follow_up_date);
 
     CREATE TABLE IF NOT EXISTS keywords (
       id INTEGER PRIMARY KEY,
