@@ -14,7 +14,11 @@ const CSV_COLUMNS = [
   "interview_dates",
   "decision_date",
   "reason",
-  "notes"
+  "notes",
+  "resume_version",
+  "cover_letter_version",
+  "referral_contact",
+  "follow_up_date"
 ] as const;
 
 export function writeApplicationsCsv(applications: ApplicationRow[], exportPath = config.csvExportPath): void {

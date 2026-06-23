@@ -10,6 +10,7 @@ interface ParsedRole {
   title: string;
   location: string | null;
   apply_url: string;
+  job_description: string | null;
 }
 
 export async function fetchTargetRoles(target: TargetRow, matcher: KeywordMatcher): Promise<TargetScanOutcome> {
@@ -59,7 +60,7 @@ async function fetchRolesForTarget(target: TargetRow): Promise<ParsedRole[]> {
 }
 
 async function fetchGreenhouseRoles(boardSlug: string): Promise<ParsedRole[]> {
-  const url = `https://boards-api.greenhouse.io/v1/boards/${encodeURIComponent(boardSlug)}/jobs`;
+  const url = `https://boards-api.greenhouse.io/v1/boards/${encodeURIComponent(boardSlug)}/jobs?content=true`;
   const json = await fetchJson(url);
   const jobs = getArrayProperty(json, "jobs", "Greenhouse jobs");
 
@@ -70,7 +71,8 @@ async function fetchGreenhouseRoles(boardSlug: string): Promise<ParsedRole[]> {
       external_id: optionalString(record.id),
       title: requiredString(record.title, "Greenhouse job title"),
       location: location ? optionalString(location.name) : null,
-      apply_url: requiredString(record.absolute_url, "Greenhouse absolute_url")
+      apply_url: requiredString(record.absolute_url, "Greenhouse absolute_url"),
+      job_description: descriptionFrom(record.content, record.description)
     };
   });
 }
@@ -89,7 +91,8 @@ async function fetchAshbyRoles(boardSlug: string): Promise<ParsedRole[]> {
       apply_url: firstRequiredString(
         [record.applyUrl, record.jobUrl, record.applicationUrl, record.url],
         "Ashby applyUrl/jobUrl"
-      )
+      ),
+      job_description: descriptionFrom(record.descriptionPlain, record.descriptionHtml, record.description, record.jobDescription)
     };
   });
 }
@@ -109,7 +112,8 @@ async function fetchLeverRoles(boardSlug: string, careersUrl: string | null): Pr
       external_id: optionalString(record.id),
       title: requiredString(record.text, "Lever posting text"),
       location: categories ? optionalString(categories.location) : null,
-      apply_url: requiredString(record.hostedUrl, "Lever hostedUrl")
+      apply_url: requiredString(record.hostedUrl, "Lever hostedUrl"),
+      job_description: descriptionFrom(record.descriptionPlain, record.description)
     };
   });
 }
@@ -125,7 +129,8 @@ async function fetchWorkableRoles(boardSlug: string): Promise<ParsedRole[]> {
       external_id: optionalString(record.shortcode) ?? optionalString(record.id) ?? optionalString(record.url),
       title: requiredString(record.title, "Workable job title"),
       location: workableLocation(record),
-      apply_url: firstRequiredString([record.url, record.application_url, record.shortlink], "Workable url/application_url")
+      apply_url: firstRequiredString([record.url, record.application_url, record.shortlink], "Workable url/application_url"),
+      job_description: descriptionFrom(record.description, record.full_description)
     };
   });
 }
@@ -142,7 +147,8 @@ async function fetchRecruiteeRoles(boardSlug: string): Promise<ParsedRole[]> {
       external_id: optionalString(record.guid) ?? optionalString(record.id) ?? optionalString(record.position),
       title: requiredString(record.title, "Recruitee offer title"),
       location: recruiteeLocation(record),
-      apply_url: firstRequiredString([record.careers_url, record.careers_apply_url], "Recruitee careers_url")
+      apply_url: firstRequiredString([record.careers_url, record.careers_apply_url], "Recruitee careers_url"),
+      job_description: descriptionFrom(record.description, record.requirements, record.offer)
     };
   });
 }
@@ -186,7 +192,8 @@ async function fetchPersonioRoles(target: TargetRow): Promise<ParsedRole[]> {
       external_id: id,
       title: requiredString(record.name, "Personio position name"),
       location: personioLocation(record),
-      apply_url: personioJobUrl(target, id)
+      apply_url: personioJobUrl(target, id),
+      job_description: personioDescription(record)
     };
   });
 }
@@ -226,7 +233,8 @@ async function fetchHtmlStructuredRoles(careersUrl: string): Promise<ParsedRole[
       external_id: optionalString(job.identifier) ?? optionalString(job["@id"]) ?? `${careersUrl}#jobposting-${index}`,
       title,
       location: jobPostingLocation(job.jobLocation),
-      apply_url: optionalString(job.url) ?? careersUrl
+      apply_url: optionalString(job.url) ?? careersUrl,
+      job_description: descriptionFrom(job.description)
     };
   });
 }
@@ -237,7 +245,8 @@ function toNewOpenRole(target: TargetRow, role: ParsedRole): NewOpenRole {
     external_id: role.external_id,
     title: role.title,
     location: role.location,
-    apply_url: role.apply_url
+    apply_url: role.apply_url,
+    job_description: role.job_description
   };
 }
 
@@ -415,7 +424,8 @@ function smartRecruitersRole(job: unknown, boardSlug: string): ParsedRole {
     location: location
       ? optionalString(location.fullLocation) ?? joinNonEmpty([location.city, location.region, location.country])
       : null,
-    apply_url: `https://jobs.smartrecruiters.com/${encodeURIComponent(boardSlug)}/${encodeURIComponent(id)}`
+    apply_url: `https://jobs.smartrecruiters.com/${encodeURIComponent(boardSlug)}/${encodeURIComponent(id)}`,
+    job_description: descriptionFrom(record.description, asRecordOrNull(record.jobAd)?.sections)
   };
 }
 
@@ -474,7 +484,8 @@ function workdayRole(posting: unknown, jobsUrl: string, careersUrl: string | nul
       optionalString(arrayFromMaybe(record.bulletFields)[0]),
     title: requiredString(record.title, "Workday posting title"),
     location: optionalString(record.locationsText) ?? optionalString(record.location),
-    apply_url: workdayApplyUrl(jobsUrl, careersUrl, externalPath)
+    apply_url: workdayApplyUrl(jobsUrl, careersUrl, externalPath),
+    job_description: descriptionFrom(record.description, record.jobDescription)
   };
 }
 
@@ -522,6 +533,41 @@ function arrayFromMaybe(value: unknown): unknown[] {
 function joinNonEmpty(values: unknown[]): string | null {
   const parts = values.map((value) => optionalString(value)).filter((value): value is string => Boolean(value));
   return parts.length > 0 ? parts.join(", ") : null;
+}
+
+function descriptionFrom(...values: unknown[]): string | null {
+  const parts = values.flatMap(descriptionParts).map(stripHtml).map((part) => part.trim()).filter(Boolean);
+  if (parts.length === 0) return null;
+  const description = parts.join("\n\n").replace(/\n{3,}/g, "\n\n").trim();
+  return description.length > 12_000 ? `${description.slice(0, 12_000).trim()}...` : description;
+}
+
+function descriptionParts(value: unknown): string[] {
+  if (typeof value === "string" || typeof value === "number") return [String(value)];
+  if (Array.isArray(value)) return value.flatMap(descriptionParts);
+  const record = asRecordOrNull(value);
+  if (!record) return [];
+  return [
+    ...descriptionParts(record.description),
+    ...descriptionParts(record.text),
+    ...descriptionParts(record.content),
+    ...descriptionParts(record.body)
+  ];
+}
+
+function personioDescription(record: Record<string, unknown>): string | null {
+  return descriptionFrom(record.jobDescriptions, record.description);
+}
+
+function stripHtml(value: string): string {
+  return decodeHtmlEntities(
+    value
+      .replace(/<br\s*\/?>/gi, "\n")
+      .replace(/<\/(p|div|li|ul|ol|h[1-6])>/gi, "\n")
+      .replace(/<[^>]+>/g, " ")
+      .replace(/[ \t]+/g, " ")
+      .replace(/\n[ \t]+/g, "\n")
+  );
 }
 
 function extractJsonLdObjects(html: string): unknown[] {

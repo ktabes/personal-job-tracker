@@ -64,7 +64,10 @@ The service also registers slash commands on startup, so `npm run commands:regis
 - `/run mode:high` - post only high-level/senior roles.
 - `/run mode:all` - post every matching role, including senior/leadership roles.
 - `/run category:<category>` - scan only one category, such as `crypto-data`, `crypto-markets`, `crypto-infra`, `crypto-protocols`, `data-platforms`, `data-vendors`, `ai-data`, `fintech-data`, `fintech-risk`, `trading-data`, or `melbourne-data`.
+- `/run view:<view>` - apply a saved report view: `best-fit`, `melbourne`, `risk-fraud`, or `entry-mid`.
 - `/applications` - show active applications with Update and Close controls. Both open popup modals; Close uses a typed `Close Status`.
+- `/shortlist` - show roles you saved for later, with Apply, Prep, and Archive controls.
+- `/followups` - show active applications whose follow-up date is due.
 - `/application add` - manually track an application from a role found outside the scan.
 - `/history limit:<N>` - show recent closed applications.
 - `/keywords` - show include/exclude terms and open add/remove modals.
@@ -150,13 +153,19 @@ Open-role reports no longer suppress roles just because they appeared in an earl
 
 Within each low/mid/high level section, role messages are grouped by continent first, then company, then role title.
 
+Each role line includes a deterministic `Fit` score based on title, level, location, and category signals. It is a triage aid only, not an LLM judgment.
+
 Clicking `Apply` copies the role into `applications`, removes that live role from `open_roles`, records the role identity in `applied_roles`, and regenerates the CSV. That applied role is excluded from future reports even if the company keeps the posting open.
 
-Each role report message has one `Apply` control and one `Hide` control. `Apply` opens a popup modal where you enter role numbers shown in the report, such as `1, 3, 5-7`. `Hide` opens a `Hide Role` popup with `Role Numbers` and `Hide Duration (Days)`; type `7`, `14`, or `30` for the duration. Submitting it removes those role lines from the message without renumbering the remaining roles. Hidden roles are excluded from future reports until their suppression expires.
+Each role report message has `Apply`, `Shortlist`, `Prep`, and `Hide` controls. `Apply`, `Shortlist`, and `Prep` open popup modals where you enter role numbers shown in the report, such as `1, 3, 5-7`. `Shortlist` removes those roles from future open-role reports and stores them in `/shortlist`. `Prep` returns a Markdown prompt bundle with role details and captured job descriptions where available. `Hide` opens a `Hide Role` popup with `Role Numbers`, `Hide Duration (Days)`, and optional `Hide Reason`; type `7`, `14`, or `30` for the duration. Submitting Apply, Shortlist, or Hide removes those role lines from the message without renumbering the remaining roles.
 
-Manual-only report messages have a `Hide Manual` control. It opens a popup with `Manual Target Numbers` and `Hide Duration (Days)`; type `7`, `14`, or `30`. Submitting it removes those manual target lines from the message without renumbering and suppresses those manual targets from future reports until expiration. Use `/hidden list` and `/hidden unhide_target id:<id>` to recover a hidden manual target.
+Manual-only report messages have `Hide Manual` and `Mark Checked` controls. `Hide Manual` opens a popup with `Manual Target Numbers`, `Hide Duration (Days)`, and optional `Hide Reason`; type `7`, `14`, or `30`. `Mark Checked` opens a popup for manual target numbers, typed review status, and notes. Manual targets marked `checked`, `applied`, or `paused` are skipped in future manual reports until their outreach status changes. Use `/hidden list` and `/hidden unhide_target id:<id>` to recover a temporarily hidden manual target.
+
+Use `/shortlist` for roles you may apply to later. The shortlist report has `Apply`, `Prep`, and `Archive` controls with the same multi-number popup pattern.
 
 Use `/application add` for jobs found outside the bot's scan. It opens a modal for company, role title, apply URL, date applied, and notes. The resulting row is a normal active application, so it appears in `/applications`, can be updated or closed, and is exported to the CSV.
+
+Active applications have `Update`, `Checklist`, `Prep`, and `Close` controls. `Checklist` tracks the resume version, cover letter used, referral/contact, follow-up date, and notes. `/followups` shows active applications with due follow-up dates.
 
 ## Open Roles Refresh
 
@@ -216,7 +225,7 @@ A role matches when its title contains at least one include term and no exclude 
 The CSV is regenerated after every `applications` write and by `/export`. It includes all active and closed applications ordered newest to oldest:
 
 ```text
-company,role_title,apply_url,date_applied,status,sub_status,heard_back_date,interview_dates,decision_date,reason,notes
+company,role_title,apply_url,date_applied,status,sub_status,heard_back_date,interview_dates,decision_date,reason,notes,resume_version,cover_letter_version,referral_contact,follow_up_date
 ```
 
 ## Railway Deployment
@@ -248,4 +257,4 @@ npm run build
 npm run smoke:fetchers
 ```
 
-`npm run smoke:fetchers` calls live example boards for Greenhouse, Ashby, Lever, Workable, Recruitee, SmartRecruiters, and Personio, then prints each status plus matching-role count. These examples are test-only and are not inserted into your `targets` table.
+`npm run smoke:fetchers` calls live example boards for Greenhouse, Ashby, Lever, Workable, Recruitee, SmartRecruiters, Personio, and Workday, then prints each status plus matching-role count. These examples are test-only and are not inserted into your `targets` table.

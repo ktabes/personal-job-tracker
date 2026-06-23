@@ -45,7 +45,7 @@ function initSchema(database: Database.Database): void {
 
     CREATE TABLE IF NOT EXISTS target_outreach (
       target_id INTEGER PRIMARY KEY REFERENCES targets(id) ON DELETE CASCADE,
-      status TEXT NOT NULL DEFAULT 'not_started' CHECK (status IN ('not_started', 'researching', 'contacted', 'applied', 'paused')),
+      status TEXT NOT NULL DEFAULT 'not_started' CHECK (status IN ('not_started', 'researching', 'checked', 'contacted', 'applied', 'paused')),
       contact_url TEXT,
       notes TEXT,
       updated_at TEXT
@@ -60,6 +60,7 @@ function initSchema(database: Database.Database): void {
       title TEXT NOT NULL,
       location TEXT,
       apply_url TEXT NOT NULL,
+      job_description TEXT,
       first_seen_at TEXT,
       last_seen_at TEXT
     );
@@ -80,6 +81,11 @@ function initSchema(database: Database.Database): void {
       decision_date TEXT,
       reason TEXT,
       notes TEXT,
+      resume_version TEXT,
+      cover_letter_version TEXT,
+      referral_contact TEXT,
+      follow_up_date TEXT,
+      job_description TEXT,
       created_at TEXT,
       updated_at TEXT
     );
@@ -87,6 +93,7 @@ function initSchema(database: Database.Database): void {
     CREATE INDEX IF NOT EXISTS idx_applications_status ON applications(status);
     CREATE INDEX IF NOT EXISTS idx_applications_date_applied ON applications(date_applied DESC);
     CREATE INDEX IF NOT EXISTS idx_applications_decision_date ON applications(decision_date DESC);
+    CREATE INDEX IF NOT EXISTS idx_applications_follow_up_date ON applications(follow_up_date);
 
     CREATE TABLE IF NOT EXISTS keywords (
       id INTEGER PRIMARY KEY,
@@ -117,6 +124,7 @@ function initSchema(database: Database.Database): void {
       company TEXT NOT NULL,
       role_title TEXT NOT NULL,
       apply_url TEXT,
+      reason TEXT,
       suppressed_until TEXT,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL,
@@ -131,6 +139,7 @@ function initSchema(database: Database.Database): void {
       target_id INTEGER NOT NULL REFERENCES targets(id) ON DELETE CASCADE,
       target_name TEXT NOT NULL,
       careers_url TEXT,
+      reason TEXT,
       suppressed_until TEXT,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL,
@@ -139,15 +148,49 @@ function initSchema(database: Database.Database): void {
 
     CREATE INDEX IF NOT EXISTS idx_hidden_targets_target ON hidden_targets(target_id);
     CREATE INDEX IF NOT EXISTS idx_hidden_targets_until ON hidden_targets(suppressed_until);
+
+    CREATE TABLE IF NOT EXISTS shortlisted_roles (
+      id INTEGER PRIMARY KEY,
+      target_id INTEGER NOT NULL REFERENCES targets(id) ON DELETE CASCADE,
+      role_key TEXT NOT NULL,
+      company TEXT NOT NULL,
+      role_title TEXT NOT NULL,
+      location TEXT,
+      apply_url TEXT NOT NULL,
+      job_description TEXT,
+      notes TEXT,
+      status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'applied', 'archived')),
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      UNIQUE(target_id, role_key)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_shortlisted_roles_status ON shortlisted_roles(status);
+    CREATE INDEX IF NOT EXISTS idx_shortlisted_roles_role ON shortlisted_roles(target_id, role_key);
   `);
   ensureTargetsLocationFilterColumn(database);
+  ensureColumn(database, "hidden_roles", "reason", "TEXT");
+  ensureColumn(database, "hidden_targets", "reason", "TEXT");
+  ensureColumn(database, "applications", "resume_version", "TEXT");
+  ensureColumn(database, "applications", "cover_letter_version", "TEXT");
+  ensureColumn(database, "applications", "referral_contact", "TEXT");
+  ensureColumn(database, "applications", "follow_up_date", "TEXT");
+  ensureColumn(database, "applications", "job_description", "TEXT");
+  ensureColumn(database, "open_roles", "job_description", "TEXT");
+  ensureColumn(database, "shortlisted_roles", "job_description", "TEXT");
+  database.exec("CREATE INDEX IF NOT EXISTS idx_applications_follow_up_date ON applications(follow_up_date)");
   migrateTargetsCheckTypeConstraint(database);
+  migrateTargetOutreachStatusConstraint(database);
 }
 
 function ensureTargetsLocationFilterColumn(database: Database.Database): void {
-  const columns = database.prepare("PRAGMA table_info(targets)").all() as Array<{ name: string }>;
-  if (columns.some((column) => column.name === "location_filter")) return;
-  database.exec("ALTER TABLE targets ADD COLUMN location_filter TEXT");
+  ensureColumn(database, "targets", "location_filter", "TEXT");
+}
+
+function ensureColumn(database: Database.Database, table: string, column: string, definition: string): void {
+  const columns = database.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>;
+  if (columns.some((item) => item.name === column)) return;
+  database.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
 }
 
 function migrateTargetsCheckTypeConstraint(database: Database.Database): void {
@@ -203,6 +246,48 @@ function migrateTargetsCheckTypeConstraint(database: Database.Database): void {
       ALTER TABLE targets_new RENAME TO targets;
       CREATE INDEX IF NOT EXISTS idx_targets_active ON targets(active);
       CREATE INDEX IF NOT EXISTS idx_targets_category ON targets(category);
+    `);
+  } finally {
+    database.pragma("foreign_keys = ON");
+  }
+}
+
+function migrateTargetOutreachStatusConstraint(database: Database.Database): void {
+  const row = database
+    .prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'target_outreach'")
+    .get() as { sql?: string } | undefined;
+  const sql = row?.sql ?? "";
+  if (sql.includes("'checked'")) return;
+
+  database.pragma("foreign_keys = OFF");
+  try {
+    database.exec(`
+      CREATE TABLE target_outreach_new (
+        target_id INTEGER PRIMARY KEY REFERENCES targets(id) ON DELETE CASCADE,
+        status TEXT NOT NULL DEFAULT 'not_started' CHECK (status IN ('not_started', 'researching', 'checked', 'contacted', 'applied', 'paused')),
+        contact_url TEXT,
+        notes TEXT,
+        updated_at TEXT
+      );
+
+      INSERT INTO target_outreach_new (
+        target_id,
+        status,
+        contact_url,
+        notes,
+        updated_at
+      )
+      SELECT
+        target_id,
+        status,
+        contact_url,
+        notes,
+        updated_at
+      FROM target_outreach;
+
+      DROP TABLE target_outreach;
+      ALTER TABLE target_outreach_new RENAME TO target_outreach;
+      CREATE INDEX IF NOT EXISTS idx_target_outreach_status ON target_outreach(status);
     `);
   } finally {
     database.pragma("foreign_keys = ON");

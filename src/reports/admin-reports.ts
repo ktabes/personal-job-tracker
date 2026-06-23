@@ -77,7 +77,8 @@ export function buildHiddenRolesReport(roles: HiddenRoleRow[]): MessageCreateOpt
   for (const role of roles) {
     const until = role.suppressed_until ? `hidden until ${role.suppressed_until}` : "hidden forever";
     const link = role.apply_url ? ` - ${role.apply_url}` : "";
-    const line = `#${role.id} **${role.company}** - ${role.role_title}; ${until}${link}`;
+    const reason = role.reason ? `; reason: ${role.reason}` : "";
+    const line = `#${role.id} **${role.company}** - ${role.role_title}; ${until}${reason}${link}`;
     const nextContent = [...lines, line].join("\n");
     if (lines.length > 1 && nextContent.length > MAX_HIDDEN_ROLES_MESSAGE_LENGTH) {
       pages.push({ content: lines.join("\n") });
@@ -106,7 +107,8 @@ export function buildHiddenReport(roles: HiddenRoleRow[], targets: HiddenTargetR
     for (const role of roles) {
       const until = role.suppressed_until ? `hidden until ${role.suppressed_until}` : "hidden forever";
       const link = role.apply_url ? ` - ${role.apply_url}` : "";
-      const line = `Role #${role.id} **${role.company}** - ${role.role_title}; ${until}${link}`;
+      const reason = role.reason ? `; reason: ${role.reason}` : "";
+      const line = `Role #${role.id} **${role.company}** - ${role.role_title}; ${until}${reason}${link}`;
       const nextContent = [...lines, line].join("\n");
       if (lines.length > 1 && nextContent.length > MAX_HIDDEN_ROLES_MESSAGE_LENGTH) {
         pages.push({ content: lines.join("\n") });
@@ -121,7 +123,8 @@ export function buildHiddenReport(roles: HiddenRoleRow[], targets: HiddenTargetR
     for (const target of targets) {
       const until = target.suppressed_until ? `hidden until ${target.suppressed_until}` : "hidden forever";
       const link = target.careers_url ? ` - ${target.careers_url}` : "";
-      const line = `Target #${target.id} **${target.target_name}**; ${until}${link}`;
+      const reason = target.reason ? `; reason: ${target.reason}` : "";
+      const line = `Target #${target.id} **${target.target_name}**; ${until}${reason}${link}`;
       const nextContent = [...lines, line].join("\n");
       if (lines.length > 1 && nextContent.length > MAX_HIDDEN_ROLES_MESSAGE_LENGTH) {
         pages.push({ content: lines.join("\n") });

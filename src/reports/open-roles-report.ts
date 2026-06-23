@@ -8,13 +8,20 @@ import {
 } from "discord.js";
 import type { OpenRoleWithTarget, TargetScanOutcome } from "../types.js";
 import type { ScanSummary } from "../scraper/scanner.js";
+import {
+  classifyRoleLevel,
+  reportViewLabel,
+  roleMatchesSavedView,
+  scoreRoleFit,
+  type OpenRolesReportView,
+  type RoleBucket
+} from "./role-insights.js";
 
 const MAX_EMBED_DESCRIPTION_LENGTH = 3_800;
 const MAX_ROLES_PER_MESSAGE = 25;
 const MAX_MANUAL_TARGETS_PER_MESSAGE = 25;
 const REPORT_COLOR = 0x2f80ed;
 
-type RoleBucket = "low" | "mid" | "high";
 type ContinentKey =
   | "north_america"
   | "europe"
@@ -45,46 +52,6 @@ const CONTINENT_ORDER: Array<{ key: ContinentKey; title: string }> = [
   { key: "africa", title: "Africa" },
   { key: "remote_global", title: "Remote / Global" },
   { key: "unspecified", title: "Unspecified Location" }
-];
-
-const LOWER_LEVEL_PATTERNS = [
-  /\bjunior\b/i,
-  /\bjr\.?\b/i,
-  /\bentry[- ]level\b/i,
-  /\bnew grad\b/i,
-  /\bgraduate\b/i,
-  /\bearly career\b/i,
-  /\bintern(ship)?\b/i,
-  /\bassociate\b/i,
-  /\banalyst\b/i,
-  /\bcoordinator\b/i,
-  /\bspecialist\b/i,
-  /\brepresentative\b/i,
-  /\brep\b/i,
-  /\bsupport agent\b/i,
-  /\btrainer\b/i,
-  /\binvestigator\b/i,
-  /\bassistant\b/i,
-  /\bapprentice\b/i
-];
-
-const SENIOR_PATTERNS = [
-  /\bsenior\b/i,
-  /\bsr\.?\b/i,
-  /\bstaff\b/i,
-  /\bprincipal\b/i,
-  /\blead\b/i,
-  /\bmanager\b/i,
-  /\bdirector\b/i,
-  /\bhead of\b/i,
-  /\bvp\b/i,
-  /\bvice president\b/i,
-  /\bchief\b/i,
-  /\barchitect\b/i,
-  /\bfellow\b/i,
-  /\bdistinguished\b/i,
-  /\bexecutive\b/i,
-  /\bcontroller\b/i
 ];
 
 const NORTH_AMERICA_TERMS = [
@@ -215,12 +182,14 @@ const REMOTE_GLOBAL_TERMS = ["global", "worldwide", "anywhere", "remote"];
 export function buildOpenRolesReport(
   summary: ScanSummary,
   roles: OpenRoleWithTarget[],
-  mode: OpenRolesReportMode = "focused"
+  mode: OpenRolesReportMode = "focused",
+  view: OpenRolesReportView = "default"
 ): BuiltOpenRolesReport {
-  const includedRoles = filterRolesForMode(roles, mode);
+  const viewedRoles = filterRolesForView(roles, view);
+  const includedRoles = filterRolesForMode(viewedRoles, mode);
   return {
     messages: [
-      buildStatusMessage(summary, roles, includedRoles, mode),
+      buildStatusMessage(summary, roles, viewedRoles, includedRoles, mode, view),
       ...buildFailedMessages(summary),
       ...buildManualTargetMessages(summary),
       ...buildNoMatchMessages(summary),
@@ -287,8 +256,10 @@ function buildBucketRoleMessages(bucketTitle: string, roles: OpenRoleWithTarget[
 function buildStatusMessage(
   summary: ScanSummary,
   roles: OpenRoleWithTarget[],
+  viewedRoles: OpenRoleWithTarget[],
   includedRoles: OpenRoleWithTarget[],
-  mode: OpenRolesReportMode
+  mode: OpenRolesReportMode,
+  view: OpenRolesReportView
 ): MessageCreateOptions {
   const failed = summary.outcomes.filter((outcome) => outcome.status === "failed");
   const manual = summary.outcomes.filter((outcome) => outcome.status === "manual");
@@ -305,6 +276,8 @@ function buildStatusMessage(
     `Low-level: ${bucketCounts.low}`,
     `Mid-level: ${bucketCounts.mid}`,
     `High-level: ${bucketCounts.high}`,
+    `Saved view: ${reportViewLabel(view)}`,
+    `View-filtered roles: ${viewedRoles.length}`,
     `Included in this report: ${includedRoles.length}`,
     `Report mode: ${reportModeLabel(mode)}`,
     `No-match targets: ${noMatches.length}`,
@@ -427,7 +400,8 @@ function toManualTargetMessage(lines: string[], page: number): MessageCreateOpti
     ],
     components: [
       new ActionRowBuilder<MessageActionRowComponentBuilder>().addComponents(
-        new ButtonBuilder().setCustomId("hide_manual_menu").setLabel("Hide Manual").setStyle(ButtonStyle.Secondary)
+        new ButtonBuilder().setCustomId("hide_manual_menu").setLabel("Hide Manual").setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId("check_manual_menu").setLabel("Mark Checked").setStyle(ButtonStyle.Primary)
       )
     ]
   };
@@ -458,6 +432,8 @@ function toRoleMessage(
     components: [
       new ActionRowBuilder<MessageActionRowComponentBuilder>().addComponents(
         new ButtonBuilder().setCustomId("apply_menu").setLabel("Apply").setStyle(ButtonStyle.Success),
+        new ButtonBuilder().setCustomId("shortlist_menu").setLabel("Shortlist").setStyle(ButtonStyle.Primary),
+        new ButtonBuilder().setCustomId("prep_menu").setLabel("Prep").setStyle(ButtonStyle.Primary),
         new ButtonBuilder().setCustomId("hide_menu").setLabel("Hide").setStyle(ButtonStyle.Secondary)
       )
     ]
@@ -472,7 +448,7 @@ function bucketRoles(roles: OpenRoleWithTarget[]): Record<RoleBucket, OpenRoleWi
   };
 
   for (const role of roles) {
-    bucketed[classifyRole(role)].push(role);
+    bucketed[classifyRoleLevel(role)].push(role);
   }
 
   return bucketed;
@@ -488,7 +464,11 @@ function countBuckets(roles: OpenRoleWithTarget[]): Record<RoleBucket, number> {
 }
 
 function filterRolesForMode(roles: OpenRoleWithTarget[], mode: OpenRolesReportMode): OpenRoleWithTarget[] {
-  return roles.filter((role) => bucketIncluded(classifyRole(role), mode));
+  return roles.filter((role) => bucketIncluded(classifyRoleLevel(role), mode));
+}
+
+function filterRolesForView(roles: OpenRoleWithTarget[], view: OpenRolesReportView): OpenRoleWithTarget[] {
+  return roles.filter((role) => roleMatchesSavedView(role, view));
 }
 
 function bucketIncluded(bucket: RoleBucket, mode: OpenRolesReportMode): boolean {
@@ -521,17 +501,10 @@ function reportModeLabel(mode: OpenRolesReportMode): string {
   }
 }
 
-function classifyRole(role: OpenRoleWithTarget): RoleBucket {
-  const title = role.title.toLowerCase();
-  if (SENIOR_PATTERNS.some((pattern) => pattern.test(title))) return "high";
-  if (LOWER_LEVEL_PATTERNS.some((pattern) => pattern.test(title))) return "low";
-  return "mid";
-}
-
 function formatRoleLine(role: OpenRoleWithTarget, roleNumber: number): string {
   const title = escapeLinkText(truncateText(role.title, 92));
   const location = role.location ? ` - ${truncateText(role.location, 60)}` : "";
-  return `**#${roleNumber}** [${title}](${role.apply_url})${location}`;
+  return `**#${roleNumber}** [${title}](${role.apply_url})${location} - Fit ${scoreRoleFit(role)}`;
 }
 
 function sortRolesForReport(roles: OpenRoleWithTarget[]): OpenRoleWithTarget[] {

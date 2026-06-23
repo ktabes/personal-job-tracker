@@ -22,8 +22,11 @@ import {
 import { config } from "../config.js";
 import type { JobTrackerRepository, RoleHideDurationDays } from "../db/repositories.js";
 import { buildHiddenReport, buildKeywordsReport, buildTargetsReport } from "../reports/admin-reports.js";
-import { buildActiveApplicationsDigest, buildClosedApplicationsHistory } from "../reports/applications-report.js";
+import { buildActiveApplicationsDigest, buildClosedApplicationsHistory, buildFollowUpDigest } from "../reports/applications-report.js";
 import { buildOpenRolesReport, type OpenRolesReportMode } from "../reports/open-roles-report.js";
+import type { OpenRolesReportView } from "../reports/role-insights.js";
+import { buildPrepBundleMarkdown, prepBundleFileName } from "../reports/prep-bundle.js";
+import { buildShortlistReport } from "../reports/shortlist-report.js";
 import { scanTargets } from "../scraper/scanner.js";
 import { isIsoDate, todayIsoDateInTimezone } from "../time.js";
 import {
@@ -36,6 +39,7 @@ import {
   type KeywordKind,
   type OpenRoleWithTarget,
   type OutreachStatus,
+  type ShortlistedRoleRow,
   type TargetRow
 } from "../types.js";
 import { sendMessagesToConfiguredChannel } from "./send.js";
@@ -71,6 +75,13 @@ export class InteractionHandler {
         await interaction.deferReply({ flags: MessageFlags.Ephemeral });
         await replyWithMessages(interaction, buildActiveApplicationsDigest(this.repository.listActiveApplications()));
         return;
+      case "shortlist":
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+        await replyWithMessages(
+          interaction,
+          buildShortlistReport(this.repository.listActiveShortlistedRoles(interaction.options.getInteger("limit") ?? 50))
+        );
+        return;
       case "application":
         await this.handleApplicationCommand(interaction);
         return;
@@ -83,6 +94,15 @@ export class InteractionHandler {
         return;
       case "keywords":
         await interaction.reply({ ...buildKeywordsReport(this.repository.listKeywords()), flags: MessageFlags.Ephemeral });
+        return;
+      case "followups":
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+        await replyWithMessages(
+          interaction,
+          buildFollowUpDigest(
+            this.repository.listDueFollowUpApplications(todayIsoDateInTimezone(config.reportTimezone))
+          )
+        );
         return;
       case "hidden":
         await this.handleHiddenCommand(interaction);
@@ -99,13 +119,16 @@ export class InteractionHandler {
   private async handleRunCommand(interaction: ChatInputCommandInteraction): Promise<void> {
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
     const mode = parseOpenRolesReportMode(interaction.options.getString("mode") ?? "focused");
-    const category = emptyToNull(interaction.options.getString("category"));
+    const view = parseOpenRolesReportView(interaction.options.getString("view") ?? "default");
+    const requestedCategory = emptyToNull(interaction.options.getString("category"));
+    const category = requestedCategory ?? (view === "melbourne" ? "melbourne-data" : null);
     const summary = await scanTargets(this.repository, category);
     const reportableRoles = this.repository.listReportableOpenRolesWithTargets(category);
-    const report = buildOpenRolesReport(summary, reportableRoles, mode);
+    const report = buildOpenRolesReport(summary, reportableRoles, mode, view);
     await sendMessagesToConfiguredChannel(this.client, report.messages);
     const scope = category ? ` for category ${category}` : "";
-    await interaction.editReply(`Open roles scan${scope} finished and the ${mode} report was posted to the configured channel.`);
+    const viewLabel = view === "default" ? "" : ` with view ${view}`;
+    await interaction.editReply(`Open roles scan${scope}${viewLabel} finished and the ${mode} report was posted to the configured channel.`);
   }
 
   private async handleApplicationCommand(interaction: ChatInputCommandInteraction): Promise<void> {
@@ -219,13 +242,18 @@ export class InteractionHandler {
   private async handleButton(customId: string, interaction: ButtonInteraction): Promise<void> {
     const [action, idRaw, kindRaw] = customId.split(":");
 
-    if (action === "apply_menu" || action === "hide_menu") {
+    if (action === "apply_menu" || action === "shortlist_menu" || action === "prep_menu" || action === "hide_menu") {
       await this.handleRoleActionButton(action, interaction);
       return;
     }
 
-    if (action === "hide_manual_menu") {
-      await this.handleManualTargetActionButton(interaction);
+    if (action === "shortlist_apply_menu" || action === "shortlist_prep_menu" || action === "shortlist_archive_menu") {
+      await this.handleShortlistActionButton(action, interaction);
+      return;
+    }
+
+    if (action === "hide_manual_menu" || action === "check_manual_menu") {
+      await this.handleManualTargetActionButton(action, interaction);
       return;
     }
 
@@ -258,6 +286,18 @@ export class InteractionHandler {
       return;
     }
 
+    if (action === "checklist") {
+      const application = this.repository.getApplication(parseIntegerId(idRaw));
+      await interaction.showModal(buildChecklistModal(application));
+      return;
+    }
+
+    if (action === "prep_application") {
+      const application = this.repository.getApplication(parseIntegerId(idRaw));
+      await replyWithPrepBundle(interaction, [application], "application-prep");
+      return;
+    }
+
     if (action === "close") {
       const application = this.repository.getApplication(parseIntegerId(idRaw));
       await interaction.showModal(buildCloseModal(application.id));
@@ -274,7 +314,10 @@ export class InteractionHandler {
     }
   }
 
-  private async handleRoleActionButton(action: "apply_menu" | "hide_menu", interaction: ButtonInteraction): Promise<void> {
+  private async handleRoleActionButton(
+    action: "apply_menu" | "shortlist_menu" | "prep_menu" | "hide_menu",
+    interaction: ButtonInteraction
+  ): Promise<void> {
     if (!messageHasRoleLines(interaction.message)) {
       await interaction.reply({
         content: "No current roles from this message are still available.",
@@ -288,15 +331,54 @@ export class InteractionHandler {
       return;
     }
 
+    if (action === "shortlist_menu") {
+      await interaction.showModal(buildShortlistRoleModal(interaction.channelId, interaction.message.id));
+      return;
+    }
+
+    if (action === "prep_menu") {
+      await interaction.showModal(buildPrepRoleModal(interaction.channelId, interaction.message.id));
+      return;
+    }
+
     await interaction.showModal(buildHideRoleModal(interaction.channelId, interaction.message.id));
   }
 
-  private async handleManualTargetActionButton(interaction: ButtonInteraction): Promise<void> {
+  private async handleShortlistActionButton(
+    action: "shortlist_apply_menu" | "shortlist_prep_menu" | "shortlist_archive_menu",
+    interaction: ButtonInteraction
+  ): Promise<void> {
+    if (!messageHasShortlistLines(interaction.message)) {
+      await interaction.reply({
+        content: "No shortlist items from this message are still available.",
+        flags: MessageFlags.Ephemeral
+      });
+      return;
+    }
+
+    await interaction.showModal(
+      buildShortlistActionModal(
+        action === "shortlist_apply_menu" ? "apply" : action === "shortlist_prep_menu" ? "prep" : "archive",
+        interaction.channelId,
+        interaction.message.id
+      )
+    );
+  }
+
+  private async handleManualTargetActionButton(
+    action: "hide_manual_menu" | "check_manual_menu",
+    interaction: ButtonInteraction
+  ): Promise<void> {
     if (!messageHasManualTargetLines(interaction.message)) {
       await interaction.reply({
         content: "No manual targets from this message are still available.",
         flags: MessageFlags.Ephemeral
       });
+      return;
+    }
+
+    if (action === "check_manual_menu") {
+      await interaction.showModal(buildCheckManualTargetModal(interaction.channelId, interaction.message.id));
       return;
     }
 
@@ -379,6 +461,133 @@ export class InteractionHandler {
       return;
     }
 
+    if (kind === "shortlist_role_modal") {
+      const sourceMessage = await fetchMessage(this.client, first, second);
+      if (!sourceMessage) {
+        await interaction.reply({
+          content: "I could not find the original report message. Run `/run` and try again.",
+          flags: MessageFlags.Ephemeral
+        });
+        return;
+      }
+
+      const roleNumbers = readRoleNumbers(interaction, "shortlist_role_number");
+      if (!roleNumbers) {
+        await interaction.reply({
+          content: "Enter role numbers like `1`, `1, 3, 5`, or `1-3`.",
+          flags: MessageFlags.Ephemeral
+        });
+        return;
+      }
+
+      const selection = rolesFromMessageByNumbers(sourceMessage, this.repository, roleNumbers);
+      if (selection.roles.length === 0) {
+        await interaction.reply({
+          content: `I could not find any available roles for ${formatRoleNumbers(roleNumbers)} in that report message.`,
+          flags: MessageFlags.Ephemeral
+        });
+        return;
+      }
+
+      const notes = emptyToNull(interaction.fields.getTextInputValue("shortlist_notes"));
+      const shortlistedRoles = selection.roles.map((role) => this.repository.shortlistOpenRole(role, notes));
+      await removeRolesFromReportMessage(sourceMessage, selection.roles);
+      await interaction.reply({
+        content: shortlistedRolesConfirmation(shortlistedRoles, selection.missingRoleNumbers),
+        flags: MessageFlags.Ephemeral
+      });
+      return;
+    }
+
+    if (kind === "prep_role_modal") {
+      const sourceMessage = await fetchMessage(this.client, first, second);
+      if (!sourceMessage) {
+        await interaction.reply({
+          content: "I could not find the original report message. Run `/run` and try again.",
+          flags: MessageFlags.Ephemeral
+        });
+        return;
+      }
+
+      const roleNumbers = readRoleNumbers(interaction, "prep_role_number");
+      if (!roleNumbers) {
+        await interaction.reply({
+          content: "Enter role numbers like `1`, `1, 3, 5`, or `1-3`.",
+          flags: MessageFlags.Ephemeral
+        });
+        return;
+      }
+
+      const selection = rolesFromMessageByNumbers(sourceMessage, this.repository, roleNumbers);
+      if (selection.roles.length === 0) {
+        await interaction.reply({
+          content: `I could not find any available roles for ${formatRoleNumbers(roleNumbers)} in that report message.`,
+          flags: MessageFlags.Ephemeral
+        });
+        return;
+      }
+
+      await replyWithPrepBundle(interaction, selection.roles, "role-prep", selection.missingRoleNumbers);
+      return;
+    }
+
+    if (kind === "shortlist_apply_modal" || kind === "shortlist_prep_modal" || kind === "shortlist_archive_modal") {
+      const sourceMessage = await fetchMessage(this.client, first, second);
+      if (!sourceMessage) {
+        await interaction.reply({
+          content: "I could not find the original shortlist message. Run `/shortlist` and try again.",
+          flags: MessageFlags.Ephemeral
+        });
+        return;
+      }
+
+      const shortlistNumbers = readRoleNumbers(interaction, "shortlist_item_number");
+      if (!shortlistNumbers) {
+        await interaction.reply({
+          content: "Enter shortlist numbers like `1`, `1, 3, 5`, or `1-3`.",
+          flags: MessageFlags.Ephemeral
+        });
+        return;
+      }
+
+      const selection = shortlistedRolesFromMessageByNumbers(sourceMessage, this.repository, shortlistNumbers);
+      if (selection.roles.length === 0) {
+        await interaction.reply({
+          content: `I could not find any available shortlist items for ${formatRoleNumbers(shortlistNumbers)} in that message.`,
+          flags: MessageFlags.Ephemeral
+        });
+        return;
+      }
+
+      if (kind === "shortlist_apply_modal") {
+        const dateApplied = todayIsoDateInTimezone(config.reportTimezone);
+        const applications = selection.roles.map((role) =>
+          this.repository.createApplicationFromShortlistedRole(role, dateApplied)
+        );
+        await removeShortlistedRolesFromMessage(sourceMessage, selection.roles);
+        await interaction.reply({
+          content: appliedRolesConfirmation(applications, selection.missingRoleNumbers),
+          flags: MessageFlags.Ephemeral
+        });
+        return;
+      }
+
+      if (kind === "shortlist_prep_modal") {
+        await replyWithPrepBundle(interaction, selection.roles, "shortlist-prep", selection.missingRoleNumbers);
+        return;
+      }
+
+      for (const role of selection.roles) {
+        this.repository.archiveShortlistedRole(role.id);
+      }
+      await removeShortlistedRolesFromMessage(sourceMessage, selection.roles);
+      await interaction.reply({
+        content: archivedShortlistedRolesConfirmation(selection.roles, selection.missingRoleNumbers),
+        flags: MessageFlags.Ephemeral
+      });
+      return;
+    }
+
     if (kind === "hide_role_modal") {
       const sourceMessage = await fetchMessage(this.client, first, second);
       if (!sourceMessage) {
@@ -418,7 +627,8 @@ export class InteractionHandler {
         return;
       }
 
-      const suppressedUntilValues = selection.roles.map((role) => this.repository.hideOpenRole(role, duration));
+      const reason = emptyToNull(interaction.fields.getTextInputValue("hide_reason"));
+      const suppressedUntilValues = selection.roles.map((role) => this.repository.hideOpenRole(role, duration, reason));
       await removeRolesFromReportMessage(sourceMessage, selection.roles);
       await interaction.reply({
         content: hiddenRolesConfirmation(
@@ -471,7 +681,8 @@ export class InteractionHandler {
         return;
       }
 
-      const suppressedUntilValues = selection.targets.map((target) => this.repository.hideTarget(target, duration));
+      const reason = emptyToNull(interaction.fields.getTextInputValue("hide_manual_reason"));
+      const suppressedUntilValues = selection.targets.map((target) => this.repository.hideTarget(target, duration, reason));
       await removeManualTargetsFromReportMessage(sourceMessage, selection.targets);
       await interaction.reply({
         content: hiddenManualTargetsConfirmation(
@@ -485,6 +696,57 @@ export class InteractionHandler {
       return;
     }
 
+    if (kind === "check_manual_modal") {
+      const sourceMessage = await fetchMessage(this.client, first, second);
+      if (!sourceMessage) {
+        await interaction.reply({
+          content: "I could not find the original manual-target message. Run `/run` and try again.",
+          flags: MessageFlags.Ephemeral
+        });
+        return;
+      }
+
+      const targetNumbers = readRoleNumbers(interaction, "check_manual_number");
+      if (!targetNumbers) {
+        await interaction.reply({
+          content: "Enter manual target numbers like `1`, `1, 3, 5`, or `1-3`.",
+          flags: MessageFlags.Ephemeral
+        });
+        return;
+      }
+
+      const selection = manualTargetsFromMessageByNumbers(sourceMessage, this.repository, targetNumbers);
+      if (selection.targets.length === 0) {
+        await interaction.reply({
+          content: `I could not find any manual targets for ${formatRoleNumbers(targetNumbers)} in that report message.`,
+          flags: MessageFlags.Ephemeral
+        });
+        return;
+      }
+
+      let status: OutreachStatus;
+      try {
+        status = parseOutreachStatus(interaction.fields.getTextInputValue("check_manual_status").trim().toLowerCase());
+      } catch {
+        await interaction.reply({
+          content: "Review Status must be `checked`, `researching`, `contacted`, `applied`, or `paused`.",
+          flags: MessageFlags.Ephemeral
+        });
+        return;
+      }
+
+      const notes = emptyToNull(interaction.fields.getTextInputValue("check_manual_notes"));
+      for (const target of selection.targets) {
+        this.repository.updateTargetOutreach({ targetId: target.id, status, notes });
+      }
+      await removeManualTargetsFromReportMessage(sourceMessage, selection.targets);
+      await interaction.reply({
+        content: checkedManualTargetsConfirmation(selection.targets, status, selection.missingTargetNumbers),
+        flags: MessageFlags.Ephemeral
+      });
+      return;
+    }
+
     if (kind === "update_modal") {
       const applicationId = parseIntegerId(first);
       const heardBackDate = readOptionalDate(interaction, "update_heard_back", "heard-back date");
@@ -493,6 +755,23 @@ export class InteractionHandler {
       const application = this.repository.updateApplication(applicationId, { heardBackDate, addInterviewDate, notes });
       await interaction.reply({
         content: `Updated application #${application.id}.`,
+        flags: MessageFlags.Ephemeral
+      });
+      return;
+    }
+
+    if (kind === "checklist_modal") {
+      const applicationId = parseIntegerId(first);
+      const followUpDate = readOptionalDate(interaction, "checklist_follow_up", "follow-up date");
+      const application = this.repository.updateApplicationChecklist(applicationId, {
+        resumeVersion: emptyToNull(interaction.fields.getTextInputValue("checklist_resume")),
+        coverLetterVersion: emptyToNull(interaction.fields.getTextInputValue("checklist_cover_letter")),
+        referralContact: emptyToNull(interaction.fields.getTextInputValue("checklist_referral")),
+        followUpDate,
+        notes: emptyToNull(interaction.fields.getTextInputValue("checklist_notes"))
+      });
+      await interaction.reply({
+        content: `Updated checklist for application #${application.id}.`,
         flags: MessageFlags.Ephemeral
       });
       return;
@@ -561,6 +840,25 @@ async function replyWithMessages(interaction: ChatInputCommandInteraction, messa
   }
 }
 
+async function replyWithPrepBundle(
+  interaction: ButtonInteraction | ModalSubmitInteraction,
+  items: Array<OpenRoleWithTarget | ShortlistedRoleRow | ApplicationRow>,
+  filePrefix: string,
+  missingNumbers: string[] = []
+): Promise<void> {
+  const markdown = buildPrepBundleMarkdown(items);
+  const file = new AttachmentBuilder(Buffer.from(markdown, "utf8"), { name: prepBundleFileName(filePrefix) });
+  const lines = [`Prepared materials bundle for ${items.length} role${items.length === 1 ? "" : "s"}.`];
+  if (missingNumbers.length > 0) {
+    lines.push(`Skipped unavailable number${missingNumbers.length === 1 ? "" : "s"}: ${formatRoleNumbers(missingNumbers)}.`);
+  }
+  await interaction.reply({
+    content: lines.join("\n"),
+    files: [file],
+    flags: MessageFlags.Ephemeral
+  });
+}
+
 function toEditReplyOptions(message: MessageCreateOptions): InteractionEditReplyOptions {
   return {
     content: message.content,
@@ -589,6 +887,11 @@ function messageHasRoleLines(message: Message): boolean {
 function messageHasManualTargetLines(message: Message): boolean {
   const description = message.embeds[0]?.description ?? "";
   return description.split("\n").some((line) => parseManualTargetLine(line));
+}
+
+function messageHasShortlistLines(message: Message): boolean {
+  const description = message.embeds[0]?.description ?? "";
+  return description.split("\n").some((line) => parseShortlistLine(line));
 }
 
 function rolesFromMessageByNumbers(
@@ -624,6 +927,41 @@ function parseRoleLine(line: string): { number: string; applyUrl: string } | nul
   const match = line.match(/^\*\*#(\d+)\*\* \[[^\]]+\]\((.+?)\)/);
   if (!match) return null;
   return { number: match[1], applyUrl: match[2] };
+}
+
+function shortlistedRolesFromMessageByNumbers(
+  message: Message,
+  repository: JobTrackerRepository,
+  shortlistNumbers: string[]
+): { roles: ShortlistedRoleRow[]; missingRoleNumbers: string[] } {
+  const description = message.embeds[0]?.description ?? "";
+  const idByNumber = new Map<string, number>();
+  for (const line of description.split("\n")) {
+    const parsed = parseShortlistLine(line);
+    if (parsed) {
+      idByNumber.set(parsed.number, parsed.id);
+    }
+  }
+
+  const roles: ShortlistedRoleRow[] = [];
+  const missingRoleNumbers: string[] = [];
+  for (const shortlistNumber of shortlistNumbers) {
+    const id = idByNumber.get(shortlistNumber);
+    const role = id ? repository.getShortlistedRole(id) : null;
+    if (role && role.status === "active") {
+      roles.push(role);
+    } else {
+      missingRoleNumbers.push(shortlistNumber);
+    }
+  }
+
+  return { roles, missingRoleNumbers };
+}
+
+function parseShortlistLine(line: string): { number: string; id: number } | null {
+  const match = line.match(/^\*\*#(\d+)\*\* `ID (\d+)` /);
+  if (!match) return null;
+  return { number: match[1], id: Number.parseInt(match[2], 10) };
 }
 
 function manualTargetsFromMessageByNumbers(
@@ -681,6 +1019,61 @@ function buildApplyRoleModal(channelId: string, messageId: string): ModalBuilder
     );
 }
 
+function buildShortlistRoleModal(channelId: string, messageId: string): ModalBuilder {
+  return new ModalBuilder()
+    .setCustomId(`shortlist_role_modal:${channelId}:${messageId}`)
+    .setTitle("Shortlist Role")
+    .addComponents(
+      new ActionRowBuilder<TextInputBuilder>().addComponents(
+        new TextInputBuilder()
+          .setCustomId("shortlist_role_number")
+          .setLabel("Role Numbers")
+          .setPlaceholder("Example: 1, 3, 5-7")
+          .setStyle(TextInputStyle.Short)
+          .setRequired(true)
+      ),
+      new ActionRowBuilder<TextInputBuilder>().addComponents(
+        new TextInputBuilder()
+          .setCustomId("shortlist_notes")
+          .setLabel("Notes")
+          .setStyle(TextInputStyle.Paragraph)
+          .setRequired(false)
+      )
+    );
+}
+
+function buildPrepRoleModal(channelId: string, messageId: string): ModalBuilder {
+  return new ModalBuilder()
+    .setCustomId(`prep_role_modal:${channelId}:${messageId}`)
+    .setTitle("Prep Materials")
+    .addComponents(
+      new ActionRowBuilder<TextInputBuilder>().addComponents(
+        new TextInputBuilder()
+          .setCustomId("prep_role_number")
+          .setLabel("Role Numbers")
+          .setPlaceholder("Example: 1, 3, 5-7")
+          .setStyle(TextInputStyle.Short)
+          .setRequired(true)
+      )
+    );
+}
+
+function buildShortlistActionModal(action: "apply" | "prep" | "archive", channelId: string, messageId: string): ModalBuilder {
+  return new ModalBuilder()
+    .setCustomId(`shortlist_${action}_modal:${channelId}:${messageId}`)
+    .setTitle(action === "apply" ? "Apply Shortlist" : action === "prep" ? "Prep Shortlist" : "Archive Shortlist")
+    .addComponents(
+      new ActionRowBuilder<TextInputBuilder>().addComponents(
+        new TextInputBuilder()
+          .setCustomId("shortlist_item_number")
+          .setLabel("Shortlist Numbers")
+          .setPlaceholder("Example: 1, 3, 5-7")
+          .setStyle(TextInputStyle.Short)
+          .setRequired(true)
+      )
+    );
+}
+
 function buildHideRoleModal(channelId: string, messageId: string): ModalBuilder {
   return new ModalBuilder()
     .setCustomId(`hide_role_modal:${channelId}:${messageId}`)
@@ -701,6 +1094,14 @@ function buildHideRoleModal(channelId: string, messageId: string): ModalBuilder 
           .setPlaceholder("7, 14, or 30")
           .setStyle(TextInputStyle.Short)
           .setRequired(true)
+      ),
+      new ActionRowBuilder<TextInputBuilder>().addComponents(
+        new TextInputBuilder()
+          .setCustomId("hide_reason")
+          .setLabel("Hide Reason")
+          .setPlaceholder("too senior, wrong location, not relevant")
+          .setStyle(TextInputStyle.Short)
+          .setRequired(false)
       )
     );
 }
@@ -725,6 +1126,46 @@ function buildHideManualTargetModal(channelId: string, messageId: string): Modal
           .setPlaceholder("7, 14, or 30")
           .setStyle(TextInputStyle.Short)
           .setRequired(true)
+      ),
+      new ActionRowBuilder<TextInputBuilder>().addComponents(
+        new TextInputBuilder()
+          .setCustomId("hide_manual_reason")
+          .setLabel("Hide Reason")
+          .setPlaceholder("checked manually, bad link, not relevant")
+          .setStyle(TextInputStyle.Short)
+          .setRequired(false)
+      )
+    );
+}
+
+function buildCheckManualTargetModal(channelId: string, messageId: string): ModalBuilder {
+  return new ModalBuilder()
+    .setCustomId(`check_manual_modal:${channelId}:${messageId}`)
+    .setTitle("Mark Manual Target")
+    .addComponents(
+      new ActionRowBuilder<TextInputBuilder>().addComponents(
+        new TextInputBuilder()
+          .setCustomId("check_manual_number")
+          .setLabel("Manual Target Numbers")
+          .setPlaceholder("Example: 1, 3, 5-7")
+          .setStyle(TextInputStyle.Short)
+          .setRequired(true)
+      ),
+      new ActionRowBuilder<TextInputBuilder>().addComponents(
+        new TextInputBuilder()
+          .setCustomId("check_manual_status")
+          .setLabel("Review Status")
+          .setPlaceholder("checked, researching, contacted, applied, or paused")
+          .setStyle(TextInputStyle.Short)
+          .setValue("checked")
+          .setRequired(true)
+      ),
+      new ActionRowBuilder<TextInputBuilder>().addComponents(
+        new TextInputBuilder()
+          .setCustomId("check_manual_notes")
+          .setLabel("Notes")
+          .setStyle(TextInputStyle.Paragraph)
+          .setRequired(false)
       )
     );
 }
@@ -785,6 +1226,30 @@ function appliedRolesConfirmation(applications: ApplicationRow[], missingRoleNum
   return lines.join("\n");
 }
 
+function shortlistedRolesConfirmation(roles: ShortlistedRoleRow[], missingRoleNumbers: string[]): string {
+  const lines = [`Shortlisted ${roles.length} role${roles.length === 1 ? "" : "s"}.`];
+  lines.push(...roles.slice(0, 5).map((role) => `- #${role.id}: ${role.company} - ${role.role_title}`));
+  if (roles.length > 5) {
+    lines.push(`- ...and ${roles.length - 5} more`);
+  }
+  if (missingRoleNumbers.length > 0) {
+    lines.push(`Skipped unavailable role number${missingRoleNumbers.length === 1 ? "" : "s"}: ${formatRoleNumbers(missingRoleNumbers)}.`);
+  }
+  return lines.join("\n");
+}
+
+function archivedShortlistedRolesConfirmation(roles: ShortlistedRoleRow[], missingRoleNumbers: string[]): string {
+  const lines = [`Archived ${roles.length} shortlisted role${roles.length === 1 ? "" : "s"}.`];
+  lines.push(...roles.slice(0, 5).map((role) => `- #${role.id}: ${role.company} - ${role.role_title}`));
+  if (roles.length > 5) {
+    lines.push(`- ...and ${roles.length - 5} more`);
+  }
+  if (missingRoleNumbers.length > 0) {
+    lines.push(`Skipped unavailable shortlist number${missingRoleNumbers.length === 1 ? "" : "s"}: ${formatRoleNumbers(missingRoleNumbers)}.`);
+  }
+  return lines.join("\n");
+}
+
 function hiddenRolesConfirmation(
   roles: OpenRoleWithTarget[],
   duration: RoleHideDurationDays,
@@ -815,6 +1280,25 @@ function hiddenManualTargetsConfirmation(
     lines.push(`- ...and ${targets.length - 5} more`);
   }
   lines.push(`They are hidden until ${suppressedUntil}.`);
+  if (missingTargetNumbers.length > 0) {
+    lines.push(`Skipped unavailable manual target number${missingTargetNumbers.length === 1 ? "" : "s"}: ${formatRoleNumbers(missingTargetNumbers)}.`);
+  }
+  return lines.join("\n");
+}
+
+function checkedManualTargetsConfirmation(
+  targets: TargetRow[],
+  status: OutreachStatus,
+  missingTargetNumbers: string[]
+): string {
+  const lines = [`Marked ${targets.length} manual target${targets.length === 1 ? "" : "s"} as ${status}.`];
+  lines.push(...targets.slice(0, 5).map((target) => `- ${target.name}`));
+  if (targets.length > 5) {
+    lines.push(`- ...and ${targets.length - 5} more`);
+  }
+  if (status === "checked" || status === "applied" || status === "paused") {
+    lines.push("Those manual targets will be skipped in future manual reports until their outreach status changes.");
+  }
   if (missingTargetNumbers.length > 0) {
     lines.push(`Skipped unavailable manual target number${missingTargetNumbers.length === 1 ? "" : "s"}: ${formatRoleNumbers(missingTargetNumbers)}.`);
   }
@@ -876,12 +1360,44 @@ async function removeManualTargetsFromReportMessage(message: Message, targets: T
     .catch(() => undefined);
 }
 
+async function removeShortlistedRolesFromMessage(message: Message, roles: ShortlistedRoleRow[]): Promise<void> {
+  const originalEmbed = message.embeds[0];
+  const description = originalEmbed?.description ?? "";
+  const ids = new Set(roles.map((role) => role.id));
+  const nextDescription = removeShortlistLinesById(description, ids);
+  const hasShortlistLines = nextDescription.split("\n").some((line) => parseShortlistLine(line));
+  const embeds = originalEmbed
+    ? [
+        EmbedBuilder.from(originalEmbed).setDescription(
+          hasShortlistLines ? nextDescription : "All shortlist items in this message are now applied or archived."
+        )
+      ]
+    : [];
+
+  await message
+    .edit({
+      embeds,
+      components: hasShortlistLines ? message.components : []
+    })
+    .catch(() => undefined);
+}
+
 function removeRoleLinesByApplyUrl(description: string, applyUrls: Set<string>): string {
   return description
     .split("\n")
     .filter((line) => {
       const parsed = parseRoleLine(line);
       return !parsed || !applyUrls.has(parsed.applyUrl);
+    })
+    .join("\n");
+}
+
+function removeShortlistLinesById(description: string, ids: Set<number>): string {
+  return description
+    .split("\n")
+    .filter((line) => {
+      const parsed = parseShortlistLine(line);
+      return !parsed || !ids.has(parsed.id);
     })
     .join("\n");
 }
@@ -1008,6 +1524,55 @@ function buildUpdateModal(applicationId: number): ModalBuilder {
     );
 }
 
+function buildChecklistModal(application: ApplicationRow): ModalBuilder {
+  return new ModalBuilder()
+    .setCustomId(`checklist_modal:${application.id}`)
+    .setTitle(`Checklist #${application.id}`)
+    .addComponents(
+      new ActionRowBuilder<TextInputBuilder>().addComponents(
+        new TextInputBuilder()
+          .setCustomId("checklist_resume")
+          .setLabel("Resume Version")
+          .setStyle(TextInputStyle.Short)
+          .setValue(truncateInputValue(application.resume_version))
+          .setRequired(false)
+      ),
+      new ActionRowBuilder<TextInputBuilder>().addComponents(
+        new TextInputBuilder()
+          .setCustomId("checklist_cover_letter")
+          .setLabel("Cover Letter Used")
+          .setStyle(TextInputStyle.Short)
+          .setValue(truncateInputValue(application.cover_letter_version))
+          .setRequired(false)
+      ),
+      new ActionRowBuilder<TextInputBuilder>().addComponents(
+        new TextInputBuilder()
+          .setCustomId("checklist_referral")
+          .setLabel("Referral / Contact")
+          .setStyle(TextInputStyle.Short)
+          .setValue(truncateInputValue(application.referral_contact))
+          .setRequired(false)
+      ),
+      new ActionRowBuilder<TextInputBuilder>().addComponents(
+        new TextInputBuilder()
+          .setCustomId("checklist_follow_up")
+          .setLabel("Follow-Up Date")
+          .setPlaceholder("YYYY-MM-DD")
+          .setStyle(TextInputStyle.Short)
+          .setValue(truncateInputValue(application.follow_up_date))
+          .setRequired(false)
+      ),
+      new ActionRowBuilder<TextInputBuilder>().addComponents(
+        new TextInputBuilder()
+          .setCustomId("checklist_notes")
+          .setLabel("Notes")
+          .setStyle(TextInputStyle.Paragraph)
+          .setValue(truncateInputValue(application.notes, 1_000))
+          .setRequired(false)
+      )
+    );
+}
+
 function buildCloseModal(applicationId: number): ModalBuilder {
   return new ModalBuilder()
     .setCustomId(`close_modal:${applicationId}`)
@@ -1108,6 +1673,13 @@ function parseOpenRolesReportMode(value: string): OpenRolesReportMode {
   throw new Error(`Invalid report mode ${value}`);
 }
 
+function parseOpenRolesReportView(value: string): OpenRolesReportView {
+  if (value === "default" || value === "best-fit" || value === "melbourne" || value === "risk-fraud" || value === "entry-mid") {
+    return value;
+  }
+  throw new Error(`Invalid report view ${value}`);
+}
+
 function validateTargetInput(checkType: CheckType, boardSlug: string | null, careersUrl: string | null): string | null {
   if (
     [
@@ -1139,4 +1711,9 @@ function emptyToNull(value: string | null): string | null {
 
 function unescapeLinkText(value: string): string {
   return value.replaceAll("\\[", "[").replaceAll("\\]", "]");
+}
+
+function truncateInputValue(value: string | null | undefined, maxLength = 100): string {
+  const text = value ?? "";
+  return text.length > maxLength ? text.slice(0, maxLength) : text;
 }

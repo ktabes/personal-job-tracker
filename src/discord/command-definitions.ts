@@ -24,8 +24,31 @@ export const commandDefinitions: RESTPostAPIChatInputApplicationCommandsJSONBody
         .setName("category")
         .setDescription("Optional category to scan, such as crypto-data or data-platforms.")
         .setRequired(false)
+    )
+    .addStringOption((option) =>
+      option
+        .setName("view")
+        .setDescription("Optional saved view to filter the report.")
+        .setRequired(false)
+        .addChoices(
+          { name: "Best fit", value: "best-fit" },
+          { name: "Melbourne / Australia", value: "melbourne" },
+          { name: "Risk / fraud / compliance", value: "risk-fraud" },
+          { name: "Entry + mid", value: "entry-mid" }
+        )
     ),
   new SlashCommandBuilder().setName("applications").setDescription("Show active applications."),
+  new SlashCommandBuilder()
+    .setName("shortlist")
+    .setDescription("Show active shortlisted roles.")
+    .addIntegerOption((option) =>
+      option
+        .setName("limit")
+        .setDescription("Maximum shortlisted roles to show.")
+        .setMinValue(1)
+        .setMaxValue(100)
+        .setRequired(false)
+    ),
   new SlashCommandBuilder()
     .setName("application")
     .setDescription("Add an application that was found outside the scan.")
@@ -46,6 +69,7 @@ export const commandDefinitions: RESTPostAPIChatInputApplicationCommandsJSONBody
         .setRequired(false)
     ),
   new SlashCommandBuilder().setName("keywords").setDescription("Show and edit include/exclude title keywords."),
+  new SlashCommandBuilder().setName("followups").setDescription("Show active applications with follow-ups due."),
   new SlashCommandBuilder()
     .setName("hidden")
     .setDescription("List or unhide suppressed roles.")

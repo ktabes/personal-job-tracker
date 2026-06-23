@@ -24,7 +24,7 @@ export type ApplicationStatus = (typeof APPLICATION_STATUSES)[number];
 export const CLOSED_SUB_STATUSES = ["rejected", "offer", "withdrawn", "ghosted"] as const;
 export type ClosedSubStatus = (typeof CLOSED_SUB_STATUSES)[number];
 
-export const OUTREACH_STATUSES = ["not_started", "researching", "contacted", "applied", "paused"] as const;
+export const OUTREACH_STATUSES = ["not_started", "researching", "checked", "contacted", "applied", "paused"] as const;
 export type OutreachStatus = (typeof OUTREACH_STATUSES)[number];
 
 export interface TargetRow {
@@ -68,6 +68,7 @@ export interface OpenRoleRow {
   title: string;
   location: string | null;
   apply_url: string;
+  job_description: string | null;
   first_seen_at: string | null;
   last_seen_at: string | null;
 }
@@ -75,6 +76,7 @@ export interface OpenRoleRow {
 export interface OpenRoleWithTarget extends OpenRoleRow {
   company: string;
   target_check_status: CheckStatus | null;
+  target_category: string | null;
 }
 
 export interface HiddenRoleRow {
@@ -84,6 +86,7 @@ export interface HiddenRoleRow {
   company: string;
   role_title: string;
   apply_url: string | null;
+  reason: string | null;
   suppressed_until: string | null;
   created_at: string;
   updated_at: string;
@@ -94,7 +97,23 @@ export interface HiddenTargetRow {
   target_id: number;
   target_name: string;
   careers_url: string | null;
+  reason: string | null;
   suppressed_until: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ShortlistedRoleRow {
+  id: number;
+  target_id: number;
+  role_key: string;
+  company: string;
+  role_title: string;
+  location: string | null;
+  apply_url: string;
+  job_description: string | null;
+  notes: string | null;
+  status: "active" | "applied" | "archived";
   created_at: string;
   updated_at: string;
 }
@@ -105,6 +124,7 @@ export interface NewOpenRole {
   title: string;
   location: string | null;
   apply_url: string;
+  job_description: string | null;
 }
 
 export interface ApplicationRow {
@@ -120,6 +140,11 @@ export interface ApplicationRow {
   decision_date: string | null;
   reason: string | null;
   notes: string | null;
+  resume_version: string | null;
+  cover_letter_version: string | null;
+  referral_contact: string | null;
+  follow_up_date: string | null;
+  job_description: string | null;
   created_at: string | null;
   updated_at: string | null;
 }

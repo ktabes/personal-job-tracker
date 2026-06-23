@@ -15,6 +15,7 @@ import type {
   OpenRoleRow,
   OpenRoleWithTarget,
   OutreachStatus,
+  ShortlistedRoleRow,
   TargetOutreachRow,
   TargetRow,
   TargetScanOutcome,
@@ -33,6 +34,14 @@ interface AddTargetInput {
 interface UpdateApplicationInput {
   heardBackDate?: string | null;
   addInterviewDate?: string | null;
+  notes?: string | null;
+}
+
+interface UpdateApplicationChecklistInput {
+  resumeVersion?: string | null;
+  coverLetterVersion?: string | null;
+  referralContact?: string | null;
+  followUpDate?: string | null;
   notes?: string | null;
 }
 
@@ -87,6 +96,13 @@ export class JobTrackerRepository {
         FROM hidden_targets
         WHERE hidden_targets.target_id = targets.id
           AND (hidden_targets.suppressed_until IS NULL OR hidden_targets.suppressed_until > ?)
+      )
+      AND NOT EXISTS (
+        SELECT 1
+        FROM target_outreach
+        WHERE target_outreach.target_id = targets.id
+          AND targets.check_type = 'manual'
+          AND target_outreach.status IN ('checked', 'applied', 'paused')
       )`;
     const sqlWhere = where ? `${where}${hiddenFilter}` : ` WHERE 1 = 1${hiddenFilter}`;
     return this.db
@@ -224,8 +240,8 @@ export class JobTrackerRepository {
     );
     const deleteRolesForTarget = this.db.prepare("DELETE FROM open_roles WHERE target_id = ?");
     const insertRole = this.db.prepare(
-      `INSERT INTO open_roles (target_id, external_id, title, location, apply_url, first_seen_at, last_seen_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO open_roles (target_id, external_id, title, location, apply_url, job_description, first_seen_at, last_seen_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
     );
 
     const transaction = this.db.transaction((items: TargetScanOutcome[]) => {
@@ -244,6 +260,7 @@ export class JobTrackerRepository {
             role.title,
             role.location,
             role.apply_url,
+            role.job_description,
             firstSeenAt,
             checkedAt
           );
@@ -258,7 +275,7 @@ export class JobTrackerRepository {
     const { categoryFilter, params } = openRoleCategoryFilter(category);
     return this.db
       .prepare(
-        `SELECT open_roles.*, targets.name AS company, targets.last_check_status AS target_check_status
+        `SELECT open_roles.*, targets.name AS company, targets.last_check_status AS target_check_status, targets.category AS target_category
          FROM open_roles
          JOIN targets ON targets.id = open_roles.target_id
          WHERE targets.active = 1${categoryFilter}
@@ -272,7 +289,7 @@ export class JobTrackerRepository {
     const timestamp = nowIso();
     return this.db
       .prepare(
-        `SELECT open_roles.*, targets.name AS company, targets.last_check_status AS target_check_status
+        `SELECT open_roles.*, targets.name AS company, targets.last_check_status AS target_check_status, targets.category AS target_category
          FROM open_roles
          JOIN targets ON targets.id = open_roles.target_id
          WHERE targets.active = 1${categoryFilter}
@@ -291,6 +308,13 @@ export class JobTrackerRepository {
            )
            AND NOT EXISTS (
              SELECT 1
+             FROM shortlisted_roles
+             WHERE shortlisted_roles.target_id = open_roles.target_id
+               AND shortlisted_roles.role_key = ${ROLE_KEY_SQL}
+               AND shortlisted_roles.status = 'active'
+           )
+           AND NOT EXISTS (
+             SELECT 1
              FROM applications
              WHERE lower(applications.company) = lower(targets.name)
                AND lower(applications.role_title) = lower(open_roles.title)
@@ -305,7 +329,7 @@ export class JobTrackerRepository {
     return (
       (this.db
         .prepare(
-          `SELECT open_roles.*, targets.name AS company, targets.last_check_status AS target_check_status
+          `SELECT open_roles.*, targets.name AS company, targets.last_check_status AS target_check_status, targets.category AS target_category
            FROM open_roles
            JOIN targets ON targets.id = open_roles.target_id
            WHERE open_roles.id = ?`
@@ -318,7 +342,7 @@ export class JobTrackerRepository {
     return (
       (this.db
         .prepare(
-          `SELECT open_roles.*, targets.name AS company, targets.last_check_status AS target_check_status
+          `SELECT open_roles.*, targets.name AS company, targets.last_check_status AS target_check_status, targets.category AS target_category
            FROM open_roles
            JOIN targets ON targets.id = open_roles.target_id
            WHERE open_roles.apply_url = ?
@@ -355,6 +379,7 @@ export class JobTrackerRepository {
           company,
           role_title,
           apply_url,
+          job_description,
           date_applied,
           status,
           sub_status,
@@ -365,15 +390,161 @@ export class JobTrackerRepository {
           notes,
           created_at,
           updated_at
-        ) VALUES (?, ?, ?, ?, 'active', NULL, NULL, '[]', NULL, NULL, NULL, ?, ?)`
+        ) VALUES (?, ?, ?, ?, ?, 'active', NULL, NULL, '[]', NULL, NULL, NULL, ?, ?)`
       )
-      .run(role.company, role.title, role.apply_url, dateApplied, timestamp, timestamp);
+      .run(role.company, role.title, role.apply_url, role.job_description, dateApplied, timestamp, timestamp);
 
     const application = this.getApplication(Number(info.lastInsertRowid));
     this.markRoleApplied(role, application.id);
     this.deleteOpenRole(role.id);
     this.regenerateCsv();
     return application;
+  }
+
+  shortlistOpenRole(role: OpenRoleWithTarget, notes: string | null = null): ShortlistedRoleRow {
+    const timestamp = nowIso();
+    const roleKey = openRoleKey(role);
+    const normalizedNotes = emptyToNull(notes);
+
+    this.db
+      .prepare(
+        `INSERT INTO shortlisted_roles (
+          target_id,
+          role_key,
+          company,
+          role_title,
+          location,
+          apply_url,
+          job_description,
+          notes,
+          status,
+          created_at,
+          updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?)
+        ON CONFLICT(target_id, role_key) DO UPDATE SET
+          company = excluded.company,
+          role_title = excluded.role_title,
+          location = excluded.location,
+          apply_url = excluded.apply_url,
+          job_description = excluded.job_description,
+          notes = COALESCE(excluded.notes, shortlisted_roles.notes),
+          status = 'active',
+          updated_at = excluded.updated_at`
+      )
+      .run(
+        role.target_id,
+        roleKey,
+        role.company,
+        role.title,
+        role.location,
+        role.apply_url,
+        role.job_description,
+        normalizedNotes,
+        timestamp,
+        timestamp
+      );
+
+    this.deleteOpenRole(role.id);
+    return this.getShortlistedRoleByRoleKey(role.target_id, roleKey);
+  }
+
+  listActiveShortlistedRoles(limit = 50): ShortlistedRoleRow[] {
+    const normalizedLimit = Math.max(1, Math.min(limit, 100));
+    return this.db
+      .prepare(
+        `SELECT *
+         FROM shortlisted_roles
+         WHERE status = 'active'
+         ORDER BY updated_at DESC, created_at DESC, id DESC
+         LIMIT ?`
+      )
+      .all(normalizedLimit) as ShortlistedRoleRow[];
+  }
+
+  getShortlistedRole(id: number): ShortlistedRoleRow | null {
+    return (
+      (this.db
+        .prepare("SELECT * FROM shortlisted_roles WHERE id = ?")
+        .get(id) as ShortlistedRoleRow | undefined) ?? null
+    );
+  }
+
+  createApplicationFromShortlistedRole(shortlistedRole: ShortlistedRoleRow, dateApplied: string): ApplicationRow {
+    const existing = this.db
+      .prepare(
+        `SELECT * FROM applications
+         WHERE status = 'active'
+           AND lower(company) = lower(?)
+           AND lower(role_title) = lower(?)
+           AND COALESCE(apply_url, '') = COALESCE(?, '')
+         ORDER BY id DESC
+         LIMIT 1`
+      )
+      .get(shortlistedRole.company, shortlistedRole.role_title, shortlistedRole.apply_url) as ApplicationRow | undefined;
+
+    if (existing) {
+      this.markRoleAppliedByFields({
+        applicationId: existing.id,
+        targetId: shortlistedRole.target_id,
+        roleKey: shortlistedRole.role_key,
+        company: shortlistedRole.company,
+        roleTitle: shortlistedRole.role_title,
+        applyUrl: shortlistedRole.apply_url
+      });
+      this.markShortlistedRoleStatus(shortlistedRole.id, "applied");
+      return existing;
+    }
+
+    const timestamp = nowIso();
+    const info = this.db
+      .prepare(
+        `INSERT INTO applications (
+          company,
+          role_title,
+          apply_url,
+          job_description,
+          date_applied,
+          status,
+          sub_status,
+          heard_back_date,
+          interview_dates,
+          decision_date,
+          reason,
+          notes,
+          created_at,
+          updated_at
+        ) VALUES (?, ?, ?, ?, ?, 'active', NULL, NULL, '[]', NULL, NULL, ?, ?, ?)`
+      )
+      .run(
+        shortlistedRole.company,
+        shortlistedRole.role_title,
+        shortlistedRole.apply_url,
+        shortlistedRole.job_description,
+        dateApplied,
+        shortlistedRole.notes,
+        timestamp,
+        timestamp
+      );
+
+    const application = this.getApplication(Number(info.lastInsertRowid));
+    this.markRoleAppliedByFields({
+      applicationId: application.id,
+      targetId: shortlistedRole.target_id,
+      roleKey: shortlistedRole.role_key,
+      company: shortlistedRole.company,
+      roleTitle: shortlistedRole.role_title,
+      applyUrl: shortlistedRole.apply_url
+    });
+    this.markShortlistedRoleStatus(shortlistedRole.id, "applied");
+    this.regenerateCsv();
+    return application;
+  }
+
+  archiveShortlistedRole(id: number): ShortlistedRoleRow | null {
+    const row = this.getShortlistedRole(id);
+    if (!row) return null;
+    this.markShortlistedRoleStatus(id, "archived");
+    return row;
   }
 
   createManualApplication(input: CreateManualApplicationInput): CreateApplicationResult {
@@ -431,9 +602,10 @@ export class JobTrackerRepository {
     return { application, created: true };
   }
 
-  hideOpenRole(role: OpenRoleWithTarget, durationDays: RoleHideDurationDays): string {
+  hideOpenRole(role: OpenRoleWithTarget, durationDays: RoleHideDurationDays, reason: string | null = null): string {
     const timestamp = nowIso();
     const suppressedUntil = daysFromNowIso(durationDays);
+    const normalizedReason = emptyToNull(reason);
 
     this.db
       .prepare(
@@ -443,26 +615,29 @@ export class JobTrackerRepository {
           company,
           role_title,
           apply_url,
+          reason,
           suppressed_until,
           created_at,
           updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(target_id, role_key) DO UPDATE SET
           company = excluded.company,
           role_title = excluded.role_title,
           apply_url = excluded.apply_url,
+          reason = excluded.reason,
           suppressed_until = excluded.suppressed_until,
           updated_at = excluded.updated_at`
       )
-      .run(role.target_id, openRoleKey(role), role.company, role.title, role.apply_url, suppressedUntil, timestamp, timestamp);
+      .run(role.target_id, openRoleKey(role), role.company, role.title, role.apply_url, normalizedReason, suppressedUntil, timestamp, timestamp);
 
     this.deleteOpenRole(role.id);
     return suppressedUntil;
   }
 
-  hideTarget(target: TargetRow, durationDays: RoleHideDurationDays): string {
+  hideTarget(target: TargetRow, durationDays: RoleHideDurationDays, reason: string | null = null): string {
     const timestamp = nowIso();
     const suppressedUntil = daysFromNowIso(durationDays);
+    const normalizedReason = emptyToNull(reason);
 
     this.db
       .prepare(
@@ -470,17 +645,19 @@ export class JobTrackerRepository {
           target_id,
           target_name,
           careers_url,
+          reason,
           suppressed_until,
           created_at,
           updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(target_id) DO UPDATE SET
           target_name = excluded.target_name,
           careers_url = excluded.careers_url,
+          reason = excluded.reason,
           suppressed_until = excluded.suppressed_until,
           updated_at = excluded.updated_at`
       )
-      .run(target.id, target.name, target.careers_url, suppressedUntil, timestamp, timestamp);
+      .run(target.id, target.name, target.careers_url, normalizedReason, suppressedUntil, timestamp, timestamp);
 
     return suppressedUntil;
   }
@@ -532,6 +709,24 @@ export class JobTrackerRepository {
   }
 
   private markRoleApplied(role: OpenRoleWithTarget, applicationId: number): void {
+    this.markRoleAppliedByFields({
+      applicationId,
+      targetId: role.target_id,
+      roleKey: openRoleKey(role),
+      company: role.company,
+      roleTitle: role.title,
+      applyUrl: role.apply_url
+    });
+  }
+
+  private markRoleAppliedByFields(input: {
+    applicationId: number;
+    targetId: number;
+    roleKey: string;
+    company: string;
+    roleTitle: string;
+    applyUrl: string | null;
+  }): void {
     this.db
       .prepare(
         `INSERT OR IGNORE INTO applied_roles (
@@ -544,7 +739,21 @@ export class JobTrackerRepository {
           applied_at
         ) VALUES (?, ?, ?, ?, ?, ?, ?)`
       )
-      .run(applicationId, role.target_id, openRoleKey(role), role.company, role.title, role.apply_url, nowIso());
+      .run(input.applicationId, input.targetId, input.roleKey, input.company, input.roleTitle, input.applyUrl, nowIso());
+  }
+
+  private getShortlistedRoleByRoleKey(targetId: number, roleKey: string): ShortlistedRoleRow {
+    const row = this.db
+      .prepare("SELECT * FROM shortlisted_roles WHERE target_id = ? AND role_key = ?")
+      .get(targetId, roleKey) as ShortlistedRoleRow | undefined;
+    if (!row) throw new Error(`Shortlisted role not found for target ${targetId}`);
+    return row;
+  }
+
+  private markShortlistedRoleStatus(id: number, status: ShortlistedRoleRow["status"]): void {
+    this.db
+      .prepare("UPDATE shortlisted_roles SET status = ?, updated_at = ? WHERE id = ?")
+      .run(status, nowIso(), id);
   }
 
   private deleteOpenRole(id: number): void {
@@ -570,6 +779,18 @@ export class JobTrackerRepository {
          LIMIT ?`
       )
       .all(limit) as ApplicationRow[];
+  }
+
+  listDueFollowUpApplications(asOfDate: string): ApplicationRow[] {
+    return this.db
+      .prepare(
+        `SELECT * FROM applications
+         WHERE status = 'active'
+           AND follow_up_date IS NOT NULL
+           AND follow_up_date <= ?
+         ORDER BY follow_up_date ASC, date_applied DESC, id DESC`
+      )
+      .all(asOfDate) as ApplicationRow[];
   }
 
   listAllApplicationsForExport(): ApplicationRow[] {
@@ -610,6 +831,33 @@ export class JobTrackerRepository {
          WHERE id = ?`
       )
       .run(heardBackDate, JSON.stringify(interviewDates), notes, timestamp, id);
+
+    const updated = this.getApplication(id);
+    this.regenerateCsv();
+    return updated;
+  }
+
+  updateApplicationChecklist(id: number, input: UpdateApplicationChecklistInput): ApplicationRow {
+    const current = this.getApplication(id);
+    const timestamp = nowIso();
+    const resumeVersion = presentOrCurrent(input.resumeVersion, current.resume_version);
+    const coverLetterVersion = presentOrCurrent(input.coverLetterVersion, current.cover_letter_version);
+    const referralContact = presentOrCurrent(input.referralContact, current.referral_contact);
+    const followUpDate = presentOrCurrent(input.followUpDate, current.follow_up_date);
+    const notes = presentOrCurrent(input.notes, current.notes);
+
+    this.db
+      .prepare(
+        `UPDATE applications
+         SET resume_version = ?,
+             cover_letter_version = ?,
+             referral_contact = ?,
+             follow_up_date = ?,
+             notes = ?,
+             updated_at = ?
+         WHERE id = ?`
+      )
+      .run(resumeVersion, coverLetterVersion, referralContact, followUpDate, notes, timestamp, id);
 
     const updated = this.getApplication(id);
     this.regenerateCsv();
