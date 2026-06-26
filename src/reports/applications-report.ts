@@ -110,16 +110,20 @@ function formatActiveApplication(application: ApplicationRow): string {
   const coverLetter = application.cover_letter_version ? `cover letter: ${application.cover_letter_version}` : "cover letter not logged";
   const referral = application.referral_contact ? `referral/contact: ${application.referral_contact}` : "no referral/contact logged";
   const followUp = formatFollowUp(application.follow_up_date);
-  const link = application.apply_url ? ` - ${application.apply_url}` : "";
+  const link = application.apply_url ? ` - ${suppressLinkPreview(application.apply_url)}` : "";
   return `#${application.id} **${application.company}** - ${application.role_title}${link}\nApplied ${application.date_applied}; ${heardBack}; ${interviewText}; ${resume}; ${coverLetter}; ${referral}; ${followUp}`;
 }
 
 function formatClosedApplication(application: ApplicationRow): string {
-  const link = application.apply_url ? ` - ${application.apply_url}` : "";
+  const link = application.apply_url ? ` - ${suppressLinkPreview(application.apply_url)}` : "";
   const decision = application.decision_date ? `closed ${application.decision_date}` : "closed";
   const subStatus = application.sub_status ?? "closed";
   const reason = application.reason ? `; reason: ${application.reason}` : "";
   return `#${application.id} **${application.company}** - ${application.role_title}${link}\nApplied ${application.date_applied}; ${decision}; ${subStatus}${reason}`;
+}
+
+function suppressLinkPreview(url: string): string {
+  return `<${url}>`;
 }
 
 function formatFollowUp(followUpDate: string | null): string {
