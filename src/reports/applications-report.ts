@@ -119,7 +119,7 @@ function formatActiveApplication(application: ApplicationRow): string {
     `- Follow-up: ${followUp}`
   ];
   if (application.apply_url) {
-    lines.push(`- Link: ${maskedLink("Open posting", application.apply_url)}`);
+    lines.push(`- Link: ${suppressLinkPreview(application.apply_url)}`);
   }
   return lines.join("\n");
 }
@@ -137,13 +137,13 @@ function formatClosedApplication(application: ApplicationRow): string {
     lines.push(`- Reason: ${application.reason}`);
   }
   if (application.apply_url) {
-    lines.push(`- Link: ${maskedLink("Open posting", application.apply_url)}`);
+    lines.push(`- Link: ${suppressLinkPreview(application.apply_url)}`);
   }
   return lines.join("\n");
 }
 
-function maskedLink(label: string, url: string): string {
-  return `[${label}](${url})`;
+function suppressLinkPreview(url: string): string {
+  return `<${url}>`;
 }
 
 function formatFollowUp(followUpDate: string | null): string {
