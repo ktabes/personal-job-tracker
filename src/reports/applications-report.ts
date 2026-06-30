@@ -102,34 +102,54 @@ export function buildClosedApplicationsHistory(applications: ApplicationRow[]): 
 }
 
 function formatActiveApplication(application: ApplicationRow): string {
-  const heardBack = application.heard_back_date ? `heard back ${application.heard_back_date}` : "no response yet";
+  const heardBack = application.heard_back_date ? `Heard back ${application.heard_back_date}` : "No response yet";
   const interviews = parseInterviewDates(application.interview_dates);
-  const interviewText =
-    interviews.length > 0 ? `interviews: ${interviews.join(", ")}` : "no interviews logged";
-  const resume = application.resume_version ? `resume: ${application.resume_version}` : "resume not logged";
-  const coverLetter = application.cover_letter_version ? `cover letter: ${application.cover_letter_version}` : "cover letter not logged";
-  const referral = application.referral_contact ? `referral/contact: ${application.referral_contact}` : "no referral/contact logged";
+  const interviewText = interviews.length > 0 ? interviews.join(", ") : "None logged";
+  const resume = application.resume_version ? `Resume ${application.resume_version}` : "Resume not logged";
+  const coverLetter = application.cover_letter_version ? `cover letter ${application.cover_letter_version}` : "cover letter not logged";
+  const referral = application.referral_contact ?? "None logged";
   const followUp = formatFollowUp(application.follow_up_date);
-  const link = application.apply_url ? ` - ${suppressLinkPreview(application.apply_url)}` : "";
-  return `#${application.id} **${application.company}** - ${application.role_title}${link}\nApplied ${application.date_applied}; ${heardBack}; ${interviewText}; ${resume}; ${coverLetter}; ${referral}; ${followUp}`;
+  const lines = [
+    `#${application.id} **${application.company}** - ${application.role_title}`,
+    `- Applied: ${application.date_applied}`,
+    `- Status: ${heardBack}`,
+    `- Interviews: ${interviewText}`,
+    `- Materials: ${resume} / ${coverLetter}`,
+    `- Contact: ${referral}`,
+    `- Follow-up: ${followUp}`
+  ];
+  if (application.apply_url) {
+    lines.push(`- Link: ${maskedLink("Open posting", application.apply_url)}`);
+  }
+  return lines.join("\n");
 }
 
 function formatClosedApplication(application: ApplicationRow): string {
-  const link = application.apply_url ? ` - ${suppressLinkPreview(application.apply_url)}` : "";
   const decision = application.decision_date ? `closed ${application.decision_date}` : "closed";
   const subStatus = application.sub_status ?? "closed";
-  const reason = application.reason ? `; reason: ${application.reason}` : "";
-  return `#${application.id} **${application.company}** - ${application.role_title}${link}\nApplied ${application.date_applied}; ${decision}; ${subStatus}${reason}`;
+  const lines = [
+    `#${application.id} **${application.company}** - ${application.role_title}`,
+    `- Applied: ${application.date_applied}`,
+    `- Decision: ${decision}`,
+    `- Outcome: ${subStatus}`
+  ];
+  if (application.reason) {
+    lines.push(`- Reason: ${application.reason}`);
+  }
+  if (application.apply_url) {
+    lines.push(`- Link: ${maskedLink("Open posting", application.apply_url)}`);
+  }
+  return lines.join("\n");
 }
 
-function suppressLinkPreview(url: string): string {
-  return `<${url}>`;
+function maskedLink(label: string, url: string): string {
+  return `[${label}](${url})`;
 }
 
 function formatFollowUp(followUpDate: string | null): string {
-  if (!followUpDate) return "no follow-up set";
+  if (!followUpDate) return "Not set";
   const today = todayIsoDateInTimezone(config.reportTimezone);
-  return followUpDate <= today ? `follow-up due ${followUpDate}` : `follow-up ${followUpDate}`;
+  return followUpDate <= today ? `Due ${followUpDate}` : followUpDate;
 }
 
 function parseInterviewDates(raw: string | null): string[] {
